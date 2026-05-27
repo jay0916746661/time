@@ -368,6 +368,120 @@ input {
   border-radius: 4px;
 }
 
+.calendarGrid {
+  display: grid;
+  grid-template-columns: 1.08fr .92fr;
+  gap: 16px;
+}
+
+.calendarSummary,
+.calendarInput,
+.insightList,
+.targetRow {
+  border: 1px solid;
+}
+
+.calendarSummary {
+  min-height: 230px;
+  border-radius: 16px;
+  padding: 22px;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.scoreDial {
+  width: 132px;
+  height: 132px;
+  border: 10px solid;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.scoreDial strong {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.scoreDial span,
+.summaryCopy span,
+.calendarInput span {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, currentColor, transparent 45%);
+}
+
+.summaryCopy h2 {
+  margin: 8px 0;
+  font-size: 28px;
+  line-height: 1.18;
+}
+
+.summaryCopy p {
+  margin: 0;
+  line-height: 1.55;
+  color: color-mix(in srgb, currentColor, transparent 28%);
+}
+
+.calendarInput {
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.calendarInput label {
+  display: grid;
+  gap: 10px;
+  height: 100%;
+}
+
+.calendarInput textarea {
+  width: 100%;
+  min-height: 172px;
+  resize: none;
+  border: 1px solid rgba(120, 120, 120, .18);
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(255, 255, 255, .45);
+  color: inherit;
+  line-height: 1.45;
+}
+
+.targetRows {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.targetRow {
+  min-height: 118px;
+  border-radius: 14px;
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.targetRow strong {
+  font-size: 25px;
+}
+
+.insightList {
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+
+.insightList p {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.insightList p + p {
+  margin-top: 8px;
+}
+
 .tweaks {
   width: 300px;
   border-left: 1px solid;

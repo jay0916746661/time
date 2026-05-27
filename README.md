@@ -1,13 +1,14 @@
-# Focus Artboard Panel
+# 時間對標面板
 
-A usable React/Vite panel that turns the supplied artboard sketches into a live dashboard canvas.
+一個可用的 React/Vite 面板，把 artboard 草稿整理成中文化的時間分析與 Google 日曆對標畫布。
 
 ## Features
 
-- Three interactive artboards: Vitality Rings, Day Dial, and Orbital Alignment.
-- Right-side tweaks panel for artboard selection, palette, density, and canvas zoom.
-- Light and dark modes.
-- Full-screen focus view for each artboard.
+- Google 日曆對標分析畫面。
+- 活力圓環、日節奏盤、目標軌道三個互動 artboard。
+- 右側調整面板：切換畫面、色票、密度、畫布縮放。
+- 淺色 / 深色模式。
+- 每個 artboard 都可以放大檢視。
 
 ## Run
 

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   Activity,
   BarChart3,
+  CalendarDays,
   CircleDot,
   Gauge,
   Maximize2,
@@ -14,6 +15,7 @@ import {
   RotateCcw,
   Sun,
   Timer,
+  Target,
   Zap,
 } from 'lucide-react';
 import './styles.css';
@@ -98,7 +100,7 @@ function App() {
   const [mode, setMode] = useState('light');
   const [palette, setPalette] = useState('ember');
   const [density, setDensity] = useState('regular');
-  const [view, setView] = useState('vitality');
+  const [view, setView] = useState('calendar');
   const [zoom, setZoom] = useState(88);
   const [panelOpen, setPanelOpen] = useState(true);
   const [focus, setFocus] = useState(null);
@@ -137,8 +139,8 @@ function TopBar({ theme, controls }) {
       <div className="brand">
         <div className="brandMark"><Activity size={18} /></div>
         <div>
-          <strong>Focus Artboard Panel</strong>
-          <span>Live dashboard canvas</span>
+          <strong>時間對標面板</strong>
+          <span>Google 日曆分析畫布</span>
         </div>
       </div>
       <div className="topActions">
@@ -146,14 +148,14 @@ function TopBar({ theme, controls }) {
           value={controls.mode}
           onChange={controls.setMode}
           options={[
-            { value: 'light', icon: Sun, label: 'Light' },
-            { value: 'dark', icon: Moon, label: 'Dark' },
+            { value: 'light', icon: Sun, label: '淺色' },
+            { value: 'dark', icon: Moon, label: '深色' },
           ]}
         />
-        <button className="iconButton" title="Reset zoom" onClick={() => controls.setZoom(88)}>
+        <button className="iconButton" title="重設縮放" onClick={() => controls.setZoom(88)}>
           <RotateCcw size={16} />
         </button>
-        <button className="iconButton" title="Toggle tweaks panel" onClick={() => controls.setPanelOpen(!controls.panelOpen)}>
+        <button className="iconButton" title="開關調整面板" onClick={() => controls.setPanelOpen(!controls.panelOpen)}>
           {controls.panelOpen ? <PanelRightClose size={17} /> : <PanelRightOpen size={17} />}
         </button>
       </div>
@@ -163,9 +165,10 @@ function TopBar({ theme, controls }) {
 
 function Sidebar({ theme, active, onSelect }) {
   const items = [
-    { id: 'vitality', label: 'Vitality', icon: Activity },
-    { id: 'dial', label: 'Day Dial', icon: Gauge },
-    { id: 'orbital', label: 'Orbital', icon: Orbit },
+    { id: 'calendar', label: '日曆對標', icon: CalendarDays },
+    { id: 'vitality', label: '活力圓環', icon: Activity },
+    { id: 'dial', label: '日節奏盤', icon: Gauge },
+    { id: 'orbital', label: '目標軌道', icon: Orbit },
   ];
   return (
     <nav className="sidebar" style={{ background: theme.surface, borderColor: theme.line }}>
@@ -181,9 +184,10 @@ function Sidebar({ theme, active, onSelect }) {
 
 function DesignCanvas({ theme, density, view, zoom, onFocus }) {
   const boards = [
-    { id: 'vitality', label: 'Vitality Rings' },
-    { id: 'dial', label: '24h Dial' },
-    { id: 'orbital', label: 'Orbital Alignment' },
+    { id: 'calendar', label: 'Google 日曆對標' },
+    { id: 'vitality', label: '活力圓環' },
+    { id: 'dial', label: '24 小時節奏盤' },
+    { id: 'orbital', label: '目標軌道' },
   ];
   const shown = view === 'all' ? boards : boards.filter((b) => b.id === view);
   return (
@@ -193,7 +197,7 @@ function DesignCanvas({ theme, density, view, zoom, onFocus }) {
           <article className="artboardFrame" key={board.id}>
             <div className="frameHeader">
               <span>{board.label}</span>
-              <button className="miniButton" title="Open focus view" onClick={() => onFocus(board.id)}>
+              <button className="miniButton" title="放大檢視" onClick={() => onFocus(board.id)}>
                 <Maximize2 size={14} />
               </button>
             </div>
@@ -206,7 +210,7 @@ function DesignCanvas({ theme, density, view, zoom, onFocus }) {
 }
 
 function Artboard({ kind, theme, density, expanded = false }) {
-  const Component = kind === 'dial' ? DialBoard : kind === 'orbital' ? OrbitalBoard : VitalityBoard;
+  const Component = kind === 'calendar' ? CalendarBoard : kind === 'dial' ? DialBoard : kind === 'orbital' ? OrbitalBoard : VitalityBoard;
   return (
     <div className={expanded ? 'artboard expanded' : 'artboard'} style={{ background: theme.page, color: theme.ink }}>
       <Component theme={theme} density={density} />
@@ -217,13 +221,13 @@ function Artboard({ kind, theme, density, expanded = false }) {
 function VitalityBoard({ theme, density }) {
   const compact = density === 'compact';
   const rings = [
-    { label: 'Deep', value: 4.8, goal: 5, color: theme.accent },
-    { label: 'Focus', value: 7.2, goal: 8, color: theme.focus },
-    { label: 'Align', value: 78, goal: 100, color: theme.align },
+    { label: '深度', value: 4.8, goal: 5, color: theme.accent },
+    { label: '專注', value: 7.2, goal: 8, color: theme.focus },
+    { label: '對標', value: 78, goal: 100, color: theme.align },
   ];
   return (
     <div className="boardLayout">
-      <BoardHeader kicker="Today / 13:42" title="Vitality Rings" theme={theme} />
+      <BoardHeader kicker="今天 / 13:42" title="活力圓環" theme={theme} />
       <section className="vitalityHero">
         <div className="rings">
           {rings.map((ring, index) => (
@@ -231,15 +235,15 @@ function VitalityBoard({ theme, density }) {
           ))}
           <div className="ringCenter">
             <strong>7.2h</strong>
-            <span>protected focus</span>
+            <span>受保護專注</span>
           </div>
         </div>
         <MetricStack theme={theme} />
       </section>
       <section className="cardGrid">
-        <DataCard icon={Timer} label="Pomodoros" value="12 / 14" theme={theme} />
-        <DataCard icon={Zap} label="Energy" value="78%" theme={theme} />
-        <DataCard icon={BarChart3} label="Distractions" value="9" theme={theme} />
+        <DataCard icon={Timer} label="番茄鐘" value="12 / 14" theme={theme} />
+        <DataCard icon={Zap} label="能量" value="78%" theme={theme} />
+        <DataCard icon={BarChart3} label="打斷" value="9" theme={theme} />
       </section>
       <Timeline theme={theme} />
     </div>
@@ -250,7 +254,7 @@ function DialBoard({ theme }) {
   const [hover, setHover] = useState(null);
   return (
     <div className="boardLayout">
-      <BoardHeader kicker="24 hour map" title="Day Dial" theme={theme} />
+      <BoardHeader kicker="24 小時地圖" title="日節奏盤" theme={theme} />
       <section className="dialWrap">
         <svg className="dialSvg" viewBox="0 0 420 420" role="img" aria-label="Twenty four hour focus dial">
           <circle cx="210" cy="210" r="174" fill="none" stroke={theme.line} strokeWidth="36" />
@@ -275,7 +279,7 @@ function DialBoard({ theme }) {
           <circle cx="210" cy="210" r="104" fill={theme.surface} stroke={theme.line} />
           <text x="210" y="196" textAnchor="middle" className="dialTime" fill={theme.ink}>13:42</text>
           <text x="210" y="224" textAnchor="middle" className="dialLabel" fill={theme.inkSoft}>
-            {hover === null ? 'current rhythm' : `${String(hover).padStart(2, '0')}:00 ${HOURS[hover]}`}
+            {hover === null ? '目前節奏' : `${String(hover).padStart(2, '0')}:00 ${categoryLabel(HOURS[hover])}`}
           </text>
         </svg>
         <MetricStack theme={theme} compact />
@@ -290,7 +294,7 @@ function OrbitalBoard({ theme }) {
   const activeGoal = GOALS.find((g) => g.label === selected) || GOALS[1];
   return (
     <div className="boardLayout">
-      <BoardHeader kicker="Goal horizon" title="Orbital Alignment" theme={theme} />
+      <BoardHeader kicker="目標週期" title="目標軌道" theme={theme} />
       <section className="orbitalGrid">
         <svg className="orbitSvg" viewBox="0 0 460 460" role="img" aria-label="Concentric goal progress orbits">
           {GOALS.map((goal, index) => {
@@ -309,8 +313,8 @@ function OrbitalBoard({ theme }) {
           <text x="230" y="248" textAnchor="middle" className="dialLabel" fill={theme.inkSoft}>{activeGoal.label}</text>
         </svg>
         <div className="goalPanel" style={{ background: theme.surface, borderColor: theme.line }}>
-          <span>Selected horizon</span>
-          <strong>{activeGoal.label}</strong>
+          <span>目前週期</span>
+          <strong>{goalLabel(activeGoal.label)}</strong>
           <p>{activeGoal.detail}</p>
           <div className="progressLine"><i style={{ width: `${activeGoal.progress}%`, background: theme.accent }} /></div>
         </div>
@@ -336,9 +340,9 @@ function MetricStack({ theme, compact = false }) {
   return (
     <div className={compact ? 'metricStack compact' : 'metricStack'}>
       {[
-        ['Deep work', '4.8h', theme.accent],
-        ['Focus total', '7.2h', theme.focus],
-        ['Goal fit', '78%', theme.align],
+        ['深度工作', '4.8h', theme.accent],
+        ['專注總量', '7.2h', theme.focus],
+        ['目標貼合', '78%', theme.align],
       ].map(([label, value, color]) => (
         <div className="metricRow" key={label} style={{ background: theme.surface, borderColor: theme.line }}>
           <i style={{ background: color }} />
@@ -385,20 +389,21 @@ function TweaksPanel({ theme, controls }) {
   return (
     <aside className="tweaks" style={{ background: theme.surface, borderColor: theme.line }}>
       <div className="tweakHead">
-        <strong>Design Tweaks</strong>
+        <strong>面板調整</strong>
         <Palette size={17} color={theme.accent} />
       </div>
       <label className="field">
-        <span>Artboard</span>
+        <span>畫面</span>
         <select value={controls.view} onChange={(e) => controls.setView(e.target.value)}>
-          <option value="vitality">Vitality Rings</option>
-          <option value="dial">Day Dial</option>
-          <option value="orbital">Orbital Alignment</option>
-          <option value="all">All Boards</option>
+          <option value="calendar">Google 日曆對標</option>
+          <option value="vitality">活力圓環</option>
+          <option value="dial">日節奏盤</option>
+          <option value="orbital">目標軌道</option>
+          <option value="all">全部畫面</option>
         </select>
       </label>
       <div className="field">
-        <span>Palette</span>
+        <span>色票</span>
         <div className="paletteGrid">
           {Object.entries(PALETTES).map(([key, p]) => (
             <button key={key} className={controls.palette === key ? 'swatch active' : 'swatch'} title={p.name} onClick={() => controls.setPalette(key)}>
@@ -410,18 +415,18 @@ function TweaksPanel({ theme, controls }) {
         </div>
       </div>
       <div className="field">
-        <span>Density</span>
+        <span>密度</span>
         <Segmented
           value={controls.density}
           onChange={controls.setDensity}
           options={[
-            { value: 'compact', label: 'Compact' },
-            { value: 'regular', label: 'Regular' },
+            { value: 'compact', label: '緊湊' },
+            { value: 'regular', label: '標準' },
           ]}
         />
       </div>
       <label className="field">
-        <span>Canvas zoom {controls.zoom}%</span>
+        <span>畫布縮放 {controls.zoom}%</span>
         <input type="range" min="58" max="112" value={controls.zoom} onChange={(e) => controls.setZoom(Number(e.target.value))} />
       </label>
     </aside>
@@ -477,6 +482,129 @@ function catColor(cat, theme) {
     break: 'rgba(150,120,80,.32)',
     sleep: 'rgba(80,88,96,.25)',
   }[cat] || theme.line;
+}
+
+function CalendarBoard({ theme }) {
+  const [raw, setRaw] = useState(SAMPLE_CALENDAR_TEXT);
+  const events = useMemo(() => parseCalendarText(raw), [raw]);
+  const analysis = useMemo(() => analyzeCalendar(events), [events]);
+  return (
+    <div className="boardLayout">
+      <BoardHeader kicker="Google Calendar / 本地分析" title="日曆對標" theme={theme} />
+      <section className="calendarGrid">
+        <div className="calendarSummary" style={{ background: theme.surface, borderColor: theme.line }}>
+          <div className="scoreDial" style={{ borderColor: theme.line }}>
+            <strong>{analysis.score}</strong>
+            <span>對標分</span>
+          </div>
+          <div className="summaryCopy">
+            <span>本週重點</span>
+            <h2>{analysis.headline}</h2>
+            <p>{analysis.note}</p>
+          </div>
+        </div>
+        <div className="calendarInput" style={{ background: theme.surface, borderColor: theme.line }}>
+          <label>
+            <span>貼上行程文字</span>
+            <textarea value={raw} onChange={(event) => setRaw(event.target.value)} spellCheck="false" />
+          </label>
+        </div>
+      </section>
+      <section className="targetRows">
+        {analysis.rows.map((row) => (
+          <div className="targetRow" key={row.label} style={{ background: theme.surface, borderColor: theme.line }}>
+            <Target size={17} color={row.color} />
+            <span>{row.label}</span>
+            <strong>{row.hours.toFixed(1)}h</strong>
+            <div className="progressLine"><i style={{ width: `${Math.min(100, row.percent)}%`, background: row.color }} /></div>
+          </div>
+        ))}
+      </section>
+      <section className="insightList" style={{ background: theme.surface, borderColor: theme.line }}>
+        {analysis.insights.map((item) => <p key={item}>{item}</p>)}
+      </section>
+    </div>
+  );
+}
+
+const SAMPLE_CALENDAR_TEXT = [
+  '上班,2026-05-27 09:00,2026-05-27 18:00',
+  '健身,2026-05-27 12:30,2026-05-27 13:30',
+  '練吉他,2026-05-27 19:45,2026-05-27 20:45',
+  '看書,2026-05-27 21:00,2026-05-27 21:30',
+  'FLOW,2026-05-27 21:45,2026-05-27 23:00',
+].join('\n');
+
+function parseCalendarText(raw) {
+  return raw.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+    const [title = '未命名', start = '', end = ''] = line.split(',').map((part) => part.trim());
+    const startDate = new Date(start.replace(' ', 'T'));
+    const endDate = new Date(end.replace(' ', 'T'));
+    const hours = Number.isFinite(endDate - startDate) ? Math.max(0, (endDate - startDate) / 36e5) : 0;
+    return { title, hours, category: inferCategory(title) };
+  }).filter((event) => event.hours > 0);
+}
+
+function inferCategory(title) {
+  const text = title.toLowerCase();
+  if (/上班|工作|meeting|會議|收款|補貨/.test(text)) return 'work';
+  if (/flow|ai|文案|拍照|整理|創作/.test(text)) return 'deep';
+  if (/吉他|看書|課|學|練舞|bachata|lv/.test(text)) return 'growth';
+  if (/健身|跑步|腳|運動/.test(text)) return 'body';
+  if (/睡|休息/.test(text)) return 'rest';
+  return 'life';
+}
+
+function analyzeCalendar(events) {
+  const totals = events.reduce((acc, event) => {
+    acc[event.category] = (acc[event.category] || 0) + event.hours;
+    return acc;
+  }, {});
+  const focus = (totals.deep || 0) + (totals.growth || 0);
+  const body = totals.body || 0;
+  const work = totals.work || 0;
+  const rest = totals.rest || 0;
+  const score = Math.round(Math.min(100, 42 + focus * 8 + body * 6 + Math.min(rest, 8) * 2 - Math.max(0, work - 45) * 2));
+  const rows = [
+    { label: '深度與創作', hours: totals.deep || 0, percent: ((totals.deep || 0) / 8) * 100, color: '#d96c4a' },
+    { label: '學習與技能', hours: totals.growth || 0, percent: ((totals.growth || 0) / 7) * 100, color: '#5d87a8' },
+    { label: '身體維護', hours: body, percent: (body / 4) * 100, color: '#7aa27a' },
+    { label: '工作占用', hours: work, percent: (work / 45) * 100, color: '#c6a255' },
+  ];
+  return {
+    score,
+    rows,
+    headline: focus >= 8 ? '專注與技能投入正在成形' : '可以再補一塊深度創作時間',
+    note: `已解析 ${events.length} 筆行程，依標題自動歸類為工作、深度、技能、身體、休息與生活。`,
+    insights: [
+      `深度/技能合計 ${focus.toFixed(1)} 小時，是最直接對標長期能力的區塊。`,
+      body >= 3 ? '身體維護頻率不錯，可以保留在中午或傍晚。' : '身體維護偏少，建議先固定兩個 30 分鐘區塊。',
+      work > 40 ? '工作占用偏高，晚間最好避免被零碎任務切碎。' : '工作量仍有餘裕，可以安排較完整的輸出時段。',
+    ],
+  };
+}
+
+function categoryLabel(cat) {
+  return {
+    deep: '深度',
+    learn: '學習',
+    create: '創作',
+    move: '移動',
+    admin: '行政',
+    plan: '規劃',
+    review: '回顧',
+    break: '休息',
+    sleep: '睡眠',
+  }[cat] || cat;
+}
+
+function goalLabel(label) {
+  return {
+    Year: '年度',
+    Quarter: '季度',
+    Month: '月份',
+    Week: '本週',
+  }[label] || label;
 }
 
 function hourArc(hour, span, rOut, rIn) {
