@@ -800,3 +800,210 @@ input {
     width: 680px;
   }
 }
+
+/* ── Google Calendar bar ───────────────────────────────────── */
+.gcalBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid;
+}
+
+.gcalButton {
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #202018;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+
+.gcalButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.gcalButton.gcalConnect {
+  background: #4285f4;
+}
+
+.gcalStatus {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4caf50;
+}
+
+.gcalHint {
+  font-size: 12px;
+  color: color-mix(in srgb, currentColor, transparent 45%);
+}
+
+/* ── Mobile: 768px and below ───────────────────────────────── */
+@media (max-width: 768px) {
+  /* Bottom navigation */
+  .sidebar {
+    display: flex !important;
+    flex-direction: row;
+    width: 100%;
+    height: 56px;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    border-right: 0;
+    border-top: 1px solid;
+    padding: 0 4px;
+  }
+
+  .sideItem {
+    flex: 1;
+    min-height: 100%;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    font-size: 10px;
+    padding: 0 4px;
+    border-radius: 8px;
+  }
+
+  .workspace {
+    flex-direction: column;
+    padding-bottom: 64px;
+  }
+
+  .canvas {
+    padding: 12px;
+    overflow-x: hidden;
+  }
+
+  /* Disable desktop zoom transform, let CSS handle layout */
+  .canvasGrid {
+    transform: none !important;
+    width: 100%;
+    display: block;
+  }
+
+  /* Artboard goes full width and auto height */
+  .artboardFrame,
+  .artboard,
+  .artboard.calendarArtboard {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0;
+  }
+
+  .artboard {
+    border-radius: 16px;
+  }
+
+  .boardLayout {
+    height: auto;
+    padding: 18px;
+    gap: 14px;
+  }
+
+  .boardHeader h1 {
+    font-size: 22px;
+  }
+
+  /* Calendar board: stack columns */
+  .calendarGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .calendarSummary {
+    min-height: 0;
+  }
+
+  .scoreDial {
+    width: 100px;
+    height: 100px;
+    flex: 0 0 auto;
+  }
+
+  .scoreDial strong {
+    font-size: 32px;
+  }
+
+  .summaryCopy h2 {
+    font-size: 18px;
+    margin: 4px 0;
+  }
+
+  /* Target rows: 2 columns */
+  .targetRows {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Tracker form: 3 columns */
+  .trackerForm {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Vitality: stack rings + metrics */
+  .vitalityHero {
+    flex-direction: column;
+    flex: none;
+    align-items: center;
+  }
+
+  .metricStack {
+    width: 100%;
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .metricRow {
+    flex: 1;
+    height: auto;
+    min-height: 56px;
+  }
+
+  /* Dial */
+  .dialWrap {
+    flex: none;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Orbital */
+  .orbitalGrid {
+    flex-direction: column;
+    align-items: center;
+    flex: none;
+  }
+
+  .goalPanel {
+    width: 100%;
+  }
+
+  /* Tweaks panel hidden on mobile */
+  .tweaks {
+    display: none;
+  }
+}
+
+/* ── Extra small: 480px and below ─────────────────────────── */
+@media (max-width: 480px) {
+  .trackerForm {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .metricStack {
+    flex-direction: column;
+  }
+
+  .metricRow {
+    flex: none;
+  }
+
+  .brand span {
+    display: none;
+  }
+}

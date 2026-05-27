@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Activity,
@@ -24,6 +24,9 @@ import './styles.css';
 const PASSWORD_HASH = '821232b4b8d1078f2e1c7963bf29d503820410bfbac3d06977870a463e72263b';
 const AUTH_KEY = 'time-panel-auth';
 const TRACKING_KEY = 'time-panel-daily-records';
+
+// 填入你的 Google OAuth Client ID（到 console.cloud.google.com 建立）
+const GCAL_CLIENT_ID = '';
 
 const PALETTES = {
   ember: {
@@ -538,11 +541,91 @@ function catColor(cat, theme) {
 function CalendarBoard({ theme }) {
   const [raw, setRaw] = useState(SAMPLE_CALENDAR_TEXT);
   const [records, setRecords] = useDailyRecords();
+  const [gcalToken, setGcalToken] = useState(() => sessionStorage.getItem('gcal-token') || null);
+  const [gcalLoading, setGcalLoading] = useState(false);
   const events = useMemo(() => parseCalendarText(raw), [raw]);
   const analysis = useMemo(() => analyzeCalendar(events), [events]);
+
+  useEffect(() => {
+    if (gcalToken) fetchAndPopulate(gcalToken);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function connectGCal() {
+    if (!window.google?.accounts?.oauth2) return;
+    setGcalLoading(true);
+    window.google.accounts.oauth2.initTokenClient({
+      client_id: GCAL_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/calendar.readonly',
+      callback: async (response) => {
+        if (response.error) { setGcalLoading(false); return; }
+        sessionStorage.setItem('gcal-token', response.access_token);
+        setGcalToken(response.access_token);
+        await fetchAndPopulate(response.access_token);
+        setGcalLoading(false);
+      },
+    }).requestAccessToken();
+  }
+
+  async function fetchAndPopulate(token) {
+    setGcalLoading(true);
+    try {
+      const now = new Date();
+      const mon = new Date(now);
+      mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+      mon.setHours(0, 0, 0, 0);
+      const sun = new Date(mon);
+      sun.setDate(mon.getDate() + 7);
+      const params = new URLSearchParams({
+        timeMin: mon.toISOString(),
+        timeMax: sun.toISOString(),
+        singleEvents: 'true',
+        orderBy: 'startTime',
+        maxResults: '200',
+      });
+      const res = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!res.ok) {
+        sessionStorage.removeItem('gcal-token');
+        setGcalToken(null);
+        return;
+      }
+      const data = await res.json();
+      const lines = (data.items || [])
+        .filter((e) => e.start?.dateTime)
+        .map((e) => {
+          const title = e.summary || '未命名';
+          const start = e.start.dateTime.slice(0, 16).replace('T', ' ');
+          const end = e.end.dateTime.slice(0, 16).replace('T', ' ');
+          return `${title},${start},${end}`;
+        });
+      if (lines.length > 0) setRaw(lines.join('\n'));
+    } finally {
+      setGcalLoading(false);
+    }
+  }
+
   return (
     <div className="boardLayout">
-      <BoardHeader kicker="Google Calendar / 本地分析" title="日曆對標" theme={theme} />
+      <BoardHeader kicker="Google Calendar / 本週對標" title="日曆對標" theme={theme} />
+      <div className="gcalBar" style={{ background: theme.surface, borderColor: theme.line }}>
+        {GCAL_CLIENT_ID ? (
+          gcalToken ? (
+            <button className="gcalButton" onClick={() => fetchAndPopulate(gcalToken)} disabled={gcalLoading}>
+              {gcalLoading ? '同步中…' : '↻ 重新整理'}
+            </button>
+          ) : (
+            <button className="gcalButton gcalConnect" onClick={connectGCal} disabled={gcalLoading}>
+              {gcalLoading ? '連接中…' : '連接 Google 日曆'}
+            </button>
+          )
+        ) : (
+          <span className="gcalHint">設定 GCAL_CLIENT_ID 後可自動同步 Google 日曆</span>
+        )}
+        {gcalToken && <span className="gcalStatus">● 已連接</span>}
+      </div>
       <section className="calendarGrid">
         <div className="calendarSummary" style={{ background: theme.surface, borderColor: theme.line }}>
           <div className="scoreDial" style={{ borderColor: theme.line }}>
@@ -557,7 +640,7 @@ function CalendarBoard({ theme }) {
         </div>
         <div className="calendarInput" style={{ background: theme.surface, borderColor: theme.line }}>
           <label>
-            <span>貼上行程文字</span>
+            <span>行程資料（標題,開始,結束）</span>
             <textarea value={raw} onChange={(event) => setRaw(event.target.value)} spellCheck="false" />
           </label>
         </div>
@@ -675,7 +758,15 @@ function TimeInput({ label, value, onChange }) {
   return (
     <label className="timeInput">
       <span>{label}</span>
-      <input type="number" min="0" step="0.25" value={value} onChange={(event) => onChange(event.target.value)} />
+      <input
+        type="number"
+        inputMode="decimal"
+        pattern="[0-9]*"
+        min="0"
+        step="0.25"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
     </label>
   );
 }
