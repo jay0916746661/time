@@ -811,6 +811,44 @@ input {
   border: 1px solid;
 }
 
+.gcalFileBtn {
+  height: 32px;
+  padding: 0 13px;
+  border: 1px solid rgba(120,120,120,.3);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.gcalFileBtn:hover {
+  background: rgba(100,100,90,.1);
+}
+
+.gcalSep {
+  font-size: 12px;
+  color: color-mix(in srgb, currentColor, transparent 50%);
+  flex: 0 0 auto;
+}
+
+.gcalUrlInput {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  border: 1px solid rgba(120,120,120,.2);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+}
+
 .gcalButton {
   height: 32px;
   padding: 0 14px;
@@ -821,6 +859,8 @@ input {
   cursor: pointer;
   font: inherit;
   font-size: 13px;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .gcalButton:disabled {
@@ -828,19 +868,17 @@ input {
   cursor: not-allowed;
 }
 
-.gcalButton.gcalConnect {
-  background: #4285f4;
-}
-
 .gcalStatus {
   font-size: 12px;
   font-weight: 700;
   color: #4caf50;
+  flex: 0 0 auto;
 }
 
-.gcalHint {
+.gcalError {
   font-size: 12px;
-  color: color-mix(in srgb, currentColor, transparent 45%);
+  color: #bd3e28;
+  flex: 0 0 auto;
 }
 
 /* ── Mobile: 768px and below ───────────────────────────────── */

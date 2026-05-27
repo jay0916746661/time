@@ -25,8 +25,7 @@ const PASSWORD_HASH = '821232b4b8d1078f2e1c7963bf29d503820410bfbac3d06977870a463
 const AUTH_KEY = 'time-panel-auth';
 const TRACKING_KEY = 'time-panel-daily-records';
 
-// 填入你的 Google OAuth Client ID（到 console.cloud.google.com 建立）
-const GCAL_CLIENT_ID = '';
+const GCAL_STORAGE_KEY = 'gcal-ics-url';
 
 const PALETTES = {
   ember: {
@@ -538,93 +537,107 @@ function catColor(cat, theme) {
   }[cat] || theme.line;
 }
 
+function parseICS(text) {
+  const normalized = text.replace(/\r\n/g, '\n').replace(/\n[ \t]/g, '');
+  const lines = normalized.split('\n');
+  const results = [];
+  let current = null;
+  for (const line of lines) {
+    if (line === 'BEGIN:VEVENT') { current = {}; continue; }
+    if (line === 'END:VEVENT') {
+      if (current?.dtstart && current?.dtend && !/VALUE=DATE/.test(current.dtstart)) {
+        const fmt = (s) => {
+          const d = s.replace(/Z$/, '');
+          return `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)} ${d.slice(9,11)}:${d.slice(11,13)}`;
+        };
+        results.push(`${current.title || '未命名'},${fmt(current.dtstart)},${fmt(current.dtend)}`);
+      }
+      current = null;
+      continue;
+    }
+    if (!current) continue;
+    if (/^SUMMARY/i.test(line)) current.title = line.replace(/^SUMMARY[^:]*:/i, '').trim();
+    if (/^DTSTART/i.test(line)) current.dtstart = line.replace(/^DTSTART[^:]*:/i, '').trim();
+    if (/^DTEND/i.test(line)) current.dtend = line.replace(/^DTEND[^:]*:/i, '').trim();
+  }
+  return results.join('\n');
+}
+
 function CalendarBoard({ theme }) {
   const [raw, setRaw] = useState(SAMPLE_CALENDAR_TEXT);
   const [records, setRecords] = useDailyRecords();
-  const [gcalToken, setGcalToken] = useState(() => sessionStorage.getItem('gcal-token') || null);
+  const [icsUrl, setIcsUrl] = useState(() => localStorage.getItem(GCAL_STORAGE_KEY) || '');
   const [gcalLoading, setGcalLoading] = useState(false);
+  const [gcalError, setGcalError] = useState('');
   const events = useMemo(() => parseCalendarText(raw), [raw]);
   const analysis = useMemo(() => analyzeCalendar(events), [events]);
 
   useEffect(() => {
-    if (gcalToken) fetchAndPopulate(gcalToken);
+    const saved = localStorage.getItem(GCAL_STORAGE_KEY);
+    if (saved) fetchICS(saved);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function connectGCal() {
-    if (!window.google?.accounts?.oauth2) return;
-    setGcalLoading(true);
-    window.google.accounts.oauth2.initTokenClient({
-      client_id: GCAL_CLIENT_ID,
-      scope: 'https://www.googleapis.com/auth/calendar.readonly',
-      callback: async (response) => {
-        if (response.error) { setGcalLoading(false); return; }
-        sessionStorage.setItem('gcal-token', response.access_token);
-        setGcalToken(response.access_token);
-        await fetchAndPopulate(response.access_token);
-        setGcalLoading(false);
-      },
-    }).requestAccessToken();
+  function handleICSFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const parsed = parseICS(e.target.result);
+      if (parsed) setRaw(parsed);
+    };
+    reader.readAsText(file, 'UTF-8');
   }
 
-  async function fetchAndPopulate(token) {
+  async function fetchICS(url) {
+    if (!url) return;
     setGcalLoading(true);
+    setGcalError('');
     try {
-      const now = new Date();
-      const mon = new Date(now);
-      mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-      mon.setHours(0, 0, 0, 0);
-      const sun = new Date(mon);
-      sun.setDate(mon.getDate() + 7);
-      const params = new URLSearchParams({
-        timeMin: mon.toISOString(),
-        timeMax: sun.toISOString(),
-        singleEvents: 'true',
-        orderBy: 'startTime',
-        maxResults: '200',
-      });
-      const res = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!res.ok) {
-        sessionStorage.removeItem('gcal-token');
-        setGcalToken(null);
-        return;
-      }
+      const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+      const res = await fetch(proxy);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      const lines = (data.items || [])
-        .filter((e) => e.start?.dateTime)
-        .map((e) => {
-          const title = e.summary || '未命名';
-          const start = e.start.dateTime.slice(0, 16).replace('T', ' ');
-          const end = e.end.dateTime.slice(0, 16).replace('T', ' ');
-          return `${title},${start},${end}`;
-        });
-      if (lines.length > 0) setRaw(lines.join('\n'));
+      const parsed = parseICS(data.contents || '');
+      if (parsed) {
+        setRaw(parsed);
+        localStorage.setItem(GCAL_STORAGE_KEY, url);
+      } else {
+        setGcalError('無法解析 ICS，請確認連結正確');
+      }
+    } catch {
+      setGcalError('連線失敗，可改用上傳 .ics 檔案');
     } finally {
       setGcalLoading(false);
     }
+  }
+
+  function saveAndFetch() {
+    localStorage.setItem(GCAL_STORAGE_KEY, icsUrl);
+    fetchICS(icsUrl);
   }
 
   return (
     <div className="boardLayout">
       <BoardHeader kicker="Google Calendar / 本週對標" title="日曆對標" theme={theme} />
       <div className="gcalBar" style={{ background: theme.surface, borderColor: theme.line }}>
-        {GCAL_CLIENT_ID ? (
-          gcalToken ? (
-            <button className="gcalButton" onClick={() => fetchAndPopulate(gcalToken)} disabled={gcalLoading}>
-              {gcalLoading ? '同步中…' : '↻ 重新整理'}
-            </button>
-          ) : (
-            <button className="gcalButton gcalConnect" onClick={connectGCal} disabled={gcalLoading}>
-              {gcalLoading ? '連接中…' : '連接 Google 日曆'}
-            </button>
-          )
-        ) : (
-          <span className="gcalHint">設定 GCAL_CLIENT_ID 後可自動同步 Google 日曆</span>
-        )}
-        {gcalToken && <span className="gcalStatus">● 已連接</span>}
+        <label className="gcalFileBtn">
+          <input type="file" accept=".ics" onChange={handleICSFile} style={{ display: 'none' }} />
+          上傳 .ics 檔
+        </label>
+        <span className="gcalSep">或</span>
+        <input
+          className="gcalUrlInput"
+          type="url"
+          placeholder="貼上 Google 日曆私人 iCal 連結"
+          value={icsUrl}
+          onChange={(e) => setIcsUrl(e.target.value)}
+        />
+        <button className="gcalButton" onClick={saveAndFetch} disabled={gcalLoading || !icsUrl}>
+          {gcalLoading ? '載入…' : '同步'}
+        </button>
+        {gcalError && <span className="gcalError">{gcalError}</span>}
+        {!gcalError && icsUrl && !gcalLoading && <span className="gcalStatus">● 已儲存</span>}
       </div>
       <section className="calendarGrid">
         <div className="calendarSummary" style={{ background: theme.surface, borderColor: theme.line }}>
