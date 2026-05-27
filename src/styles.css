@@ -28,6 +28,66 @@ input {
   color: var(--ink);
 }
 
+.lockScreen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    linear-gradient(rgba(0, 0, 0, .035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, .035) 1px, transparent 1px),
+    #f6f4ef;
+  background-size: 28px 28px;
+}
+
+.lockCard {
+  width: min(100%, 380px);
+  padding: 28px;
+  border: 1px solid rgba(32, 32, 24, .12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .82);
+  box-shadow: 0 24px 80px rgba(40, 35, 25, .16);
+  display: grid;
+  gap: 14px;
+}
+
+.lockCard h1 {
+  margin: 4px 0 0;
+  font-size: 28px;
+}
+
+.lockCard p {
+  margin: 0;
+  color: rgba(32, 32, 24, .62);
+  line-height: 1.5;
+}
+
+.lockCard input {
+  height: 42px;
+  border: 1px solid rgba(32, 32, 24, .16);
+  border-radius: 9px;
+  padding: 0 12px;
+  background: #fff;
+}
+
+.lockCard button,
+.saveButton {
+  border: 0;
+  border-radius: 9px;
+  background: #202018;
+  color: #fff;
+  cursor: pointer;
+}
+
+.lockCard button {
+  height: 42px;
+}
+
+.lockError {
+  color: #bd3e28;
+  font-size: 13px;
+}
+
 .topbar {
   height: 64px;
   display: flex;
@@ -151,6 +211,14 @@ input {
 .artboard.expanded {
   width: min(100vw - 96px, 1040px);
   height: min(100vh - 96px, 820px);
+}
+
+.artboard.calendarArtboard {
+  height: 1060px;
+}
+
+.artboard.expanded.calendarArtboard {
+  height: min(100vh - 96px, 920px);
 }
 
 .boardLayout {
@@ -377,7 +445,8 @@ input {
 .calendarSummary,
 .calendarInput,
 .insightList,
-.targetRow {
+.targetRow,
+.dailyTracker {
   border: 1px solid;
 }
 
@@ -480,6 +549,94 @@ input {
 
 .insightList p + p {
   margin-top: 8px;
+}
+
+.dailyTracker {
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.trackerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.trackerHead span {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, currentColor, transparent 45%);
+}
+
+.trackerHead h2 {
+  margin: 4px 0 0;
+  font-size: 22px;
+}
+
+.saveButton {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 13px;
+}
+
+.trackerForm {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.timeInput {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.timeInput input {
+  width: 100%;
+  height: 34px;
+  border: 1px solid rgba(120, 120, 120, .2);
+  border-radius: 8px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, .46);
+  color: inherit;
+}
+
+.noteInput {
+  width: 100%;
+  min-height: 62px;
+  margin-top: 12px;
+  resize: vertical;
+  border: 1px solid rgba(120, 120, 120, .2);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, .46);
+  color: inherit;
+}
+
+.recordStrip {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.recordStrip div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.recordStrip span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(120, 120, 120, .12);
+  font-size: 12px;
 }
 
 .tweaks {

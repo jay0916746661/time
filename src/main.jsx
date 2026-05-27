@@ -12,6 +12,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Palette,
+  Save,
   RotateCcw,
   Sun,
   Timer,
@@ -19,6 +20,10 @@ import {
   Zap,
 } from 'lucide-react';
 import './styles.css';
+
+const PASSWORD_HASH = '821232b4b8d1078f2e1c7963bf29d503820410bfbac3d06977870a463e72263b';
+const AUTH_KEY = 'time-panel-auth';
+const TRACKING_KEY = 'time-panel-daily-records';
 
 const PALETTES = {
   ember: {
@@ -97,6 +102,7 @@ function makeTheme(mode, paletteKey) {
 }
 
 function App() {
+  const [unlocked, setUnlocked] = useState(() => localStorage.getItem(AUTH_KEY) === '1');
   const [mode, setMode] = useState('light');
   const [palette, setPalette] = useState('ember');
   const [density, setDensity] = useState('regular');
@@ -110,6 +116,10 @@ function App() {
     mode, setMode, palette, setPalette, density, setDensity, view, setView,
     zoom, setZoom, panelOpen, setPanelOpen,
   };
+
+  if (!unlocked) {
+    return <PasswordGate onUnlock={() => setUnlocked(true)} />;
+  }
 
   return (
     <main className="app" style={{ '--page': theme.page, '--ink': theme.ink }}>
@@ -131,6 +141,47 @@ function App() {
       )}
     </main>
   );
+}
+
+function PasswordGate({ onUnlock }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  async function submit(event) {
+    event.preventDefault();
+    const hash = await sha256(password);
+    if (hash === PASSWORD_HASH) {
+      localStorage.setItem(AUTH_KEY, '1');
+      onUnlock();
+      return;
+    }
+    setError('密碼不正確');
+  }
+
+  return (
+    <main className="lockScreen">
+      <form className="lockCard" onSubmit={submit}>
+        <div className="brandMark"><Activity size={18} /></div>
+        <h1>時間對標面板</h1>
+        <p>輸入密碼後開始查看與記錄你的每日時間。</p>
+        <input
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="密碼"
+          autoFocus
+        />
+        {error && <span className="lockError">{error}</span>}
+        <button type="submit">進入面板</button>
+      </form>
+    </main>
+  );
+}
+
+async function sha256(text) {
+  const data = new TextEncoder().encode(text);
+  const buffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buffer)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 function TopBar({ theme, controls }) {
@@ -212,7 +263,7 @@ function DesignCanvas({ theme, density, view, zoom, onFocus }) {
 function Artboard({ kind, theme, density, expanded = false }) {
   const Component = kind === 'calendar' ? CalendarBoard : kind === 'dial' ? DialBoard : kind === 'orbital' ? OrbitalBoard : VitalityBoard;
   return (
-    <div className={expanded ? 'artboard expanded' : 'artboard'} style={{ background: theme.page, color: theme.ink }}>
+    <div className={`${expanded ? 'artboard expanded' : 'artboard'} ${kind === 'calendar' ? 'calendarArtboard' : ''}`} style={{ background: theme.page, color: theme.ink }}>
       <Component theme={theme} density={density} />
     </div>
   );
@@ -486,6 +537,7 @@ function catColor(cat, theme) {
 
 function CalendarBoard({ theme }) {
   const [raw, setRaw] = useState(SAMPLE_CALENDAR_TEXT);
+  const [records, setRecords] = useDailyRecords();
   const events = useMemo(() => parseCalendarText(raw), [raw]);
   const analysis = useMemo(() => analyzeCalendar(events), [events]);
   return (
@@ -523,7 +575,108 @@ function CalendarBoard({ theme }) {
       <section className="insightList" style={{ background: theme.surface, borderColor: theme.line }}>
         {analysis.insights.map((item) => <p key={item}>{item}</p>)}
       </section>
+      <DailyTracker theme={theme} records={records} setRecords={setRecords} analysis={analysis} />
     </div>
+  );
+}
+
+function useDailyRecords() {
+  const [records, setRecords] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(TRACKING_KEY) || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const saveRecords = (next) => {
+    const value = typeof next === 'function' ? next(records) : next;
+    setRecords(value);
+    localStorage.setItem(TRACKING_KEY, JSON.stringify(value));
+  };
+  return [records, saveRecords];
+}
+
+function DailyTracker({ theme, records, setRecords, analysis }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const existing = records.find((record) => record.date === today);
+  const defaults = existing || {
+    date: today,
+    deep: Number((analysis.rows.find((row) => row.label === '深度與創作')?.hours || 0).toFixed(1)),
+    growth: Number((analysis.rows.find((row) => row.label === '學習與技能')?.hours || 0).toFixed(1)),
+    body: Number((analysis.rows.find((row) => row.label === '身體維護')?.hours || 0).toFixed(1)),
+    work: Number((analysis.rows.find((row) => row.label === '工作占用')?.hours || 0).toFixed(1)),
+    rest: 0,
+    life: 0,
+    note: '',
+  };
+  const [draft, setDraft] = useState(defaults);
+  const lastSeven = [...records].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7);
+  const weeklyTotal = lastSeven.reduce((sum, record) => sum + Number(record.deep || 0) + Number(record.growth || 0), 0);
+
+  function update(key, value) {
+    setDraft((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function save() {
+    const cleaned = {
+      ...draft,
+      deep: Number(draft.deep || 0),
+      growth: Number(draft.growth || 0),
+      body: Number(draft.body || 0),
+      work: Number(draft.work || 0),
+      rest: Number(draft.rest || 0),
+      life: Number(draft.life || 0),
+    };
+    setRecords((prev) => {
+      const withoutToday = prev.filter((record) => record.date !== cleaned.date);
+      return [...withoutToday, cleaned].sort((a, b) => a.date.localeCompare(b.date));
+    });
+  }
+
+  return (
+    <section className="dailyTracker" style={{ background: theme.surface, borderColor: theme.line }}>
+      <div className="trackerHead">
+        <div>
+          <span>每日追蹤</span>
+          <h2>今天的時間帳</h2>
+        </div>
+        <button className="saveButton" onClick={save}>
+          <Save size={16} />
+          儲存今天
+        </button>
+      </div>
+      <div className="trackerForm">
+        <TimeInput label="深度創作" value={draft.deep} onChange={(v) => update('deep', v)} />
+        <TimeInput label="學習技能" value={draft.growth} onChange={(v) => update('growth', v)} />
+        <TimeInput label="身體維護" value={draft.body} onChange={(v) => update('body', v)} />
+        <TimeInput label="工作" value={draft.work} onChange={(v) => update('work', v)} />
+        <TimeInput label="休息睡眠" value={draft.rest} onChange={(v) => update('rest', v)} />
+        <TimeInput label="生活社交" value={draft.life} onChange={(v) => update('life', v)} />
+      </div>
+      <textarea
+        className="noteInput"
+        value={draft.note}
+        onChange={(event) => update('note', event.target.value)}
+        placeholder="今天的能量、卡點、明天要保護的時間..."
+      />
+      <div className="recordStrip">
+        <strong>近 7 筆深度/技能：{weeklyTotal.toFixed(1)}h</strong>
+        <div>
+          {lastSeven.length ? lastSeven.map((record) => (
+            <span key={record.date}>{record.date.slice(5)} · {(Number(record.deep || 0) + Number(record.growth || 0)).toFixed(1)}h</span>
+          )) : <span>儲存後會出現每日紀錄</span>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TimeInput({ label, value, onChange }) {
+  return (
+    <label className="timeInput">
+      <span>{label}</span>
+      <input type="number" min="0" step="0.25" value={value} onChange={(event) => onChange(event.target.value)} />
+    </label>
   );
 }
 
