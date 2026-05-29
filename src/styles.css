@@ -214,7 +214,7 @@ input {
 }
 
 .artboard.calendarArtboard {
-  height: 1780px;
+  height: 2060px;
 }
 
 .artboard.expanded.calendarArtboard {
@@ -452,6 +452,7 @@ input {
 .plannerList,
 .pomodoroPanel,
 .historyPanel,
+.weeklyPlanPanel,
 .dailyTracker {
   border: 1px solid;
 }
@@ -594,7 +595,8 @@ input {
 .ratioTuner,
 .plannerList,
 .pomodoroPanel,
-.historyPanel {
+.historyPanel,
+.weeklyPlanPanel {
   border-radius: 14px;
   padding: 16px;
 }
@@ -770,6 +772,49 @@ input {
 .monthTotal {
   grid-template-columns: 1fr auto;
   align-items: center;
+}
+
+.weeklyPlanPanel {
+  display: grid;
+  gap: 14px;
+}
+
+.weeklyPlanActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.weeklyPlanTable {
+  display: grid;
+  gap: 9px;
+}
+
+.weeklyPlanRow {
+  display: grid;
+  grid-template-columns: .7fr .72fr .72fr 1.1fr 1.4fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.weeklyPlanRow input,
+.weeklyPlanRow select {
+  width: 100%;
+  height: 34px;
+  min-width: 0;
+  border: 1px solid rgba(120, 120, 120, .2);
+  border-radius: 8px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, .46);
+  color: inherit;
+}
+
+.syncHint {
+  margin: 0;
+  color: color-mix(in srgb, currentColor, transparent 42%);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .insightList {
@@ -1221,7 +1266,8 @@ input {
 
   .alignmentGrid,
   .pomodoroGrid,
-  .historyGrid {
+  .historyGrid,
+  .weeklyPlanRow {
     grid-template-columns: 1fr;
   }
 

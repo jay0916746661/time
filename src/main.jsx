@@ -31,6 +31,7 @@ const TARGET_RATIO_KEY = 'time-panel-target-ratios';
 const POMODORO_KEY = 'time-panel-pomodoro-settings';
 const ADJUSTMENTS_KEY = 'time-panel-scenario-adjustments';
 const WEEKLY_HISTORY_KEY = 'time-panel-weekly-history';
+const WEEKLY_PLAN_KEY = 'time-panel-weekly-plan';
 
 const CATEGORY_DEFS = [
   { key: 'dance', label: '舞蹈社交', target: 24, goal: '主要紓壓與高品質社交' },
@@ -603,6 +604,7 @@ function CalendarBoard({ theme }) {
   const [targets, setTargets] = useTargetRatios();
   const [adjustments, setAdjustments] = useScenarioAdjustments();
   const [weeklyHistory, setWeeklyHistory] = useWeeklyHistory();
+  const [weeklyPlan, setWeeklyPlan] = useWeeklyPlan();
   const [icsUrl, setIcsUrl] = useState(() => localStorage.getItem(GCAL_STORAGE_KEY) || '');
   const [gcalLoading, setGcalLoading] = useState(false);
   const [gcalError, setGcalError] = useState('');
@@ -790,6 +792,13 @@ function CalendarBoard({ theme }) {
         </div>
         {analysis.recommendations.map((item) => <p key={item}>{item}</p>)}
       </section>
+      <WeeklyPlanPanel
+        theme={theme}
+        analysis={analysis}
+        plan={weeklyPlan}
+        setPlan={setWeeklyPlan}
+        onAddCalendarBlock={(line) => setRaw((prev) => `${prev.trim()}\n${line}`.trim())}
+      />
       <PomodoroPanel theme={theme} onAddCalendarBlock={(line) => setRaw((prev) => `${prev.trim()}\n${line}`.trim())} />
       <DailyTracker theme={theme} records={records} setRecords={setRecords} analysis={analysis} />
     </div>
@@ -856,6 +865,106 @@ function useWeeklyHistory() {
     });
   };
   return [history, setHistory];
+}
+
+function defaultWeeklyPlan() {
+  return [
+    { id: 'ai-mon', dayOffset: 0, start: '07:30', end: '08:30', category: 'growth', title: 'AI 專注時段' },
+    { id: 'invest-wed', dayOffset: 2, start: '21:30', end: '22:15', category: 'investing', title: '美股投資研究' },
+    { id: 'guitar-fri', dayOffset: 4, start: '20:00', end: '21:30', category: 'music', title: '練吉他錄音創作' },
+    { id: 'photo-sat', dayOffset: 5, start: '15:30', end: '17:30', category: 'photo', title: '街拍抓拍' },
+  ];
+}
+
+function useWeeklyPlan() {
+  const [plan, setPlanState] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(WEEKLY_PLAN_KEY) || '[]');
+      return saved.length ? saved : defaultWeeklyPlan();
+    } catch {
+      return defaultWeeklyPlan();
+    }
+  });
+  const setPlan = (next) => {
+    setPlanState((prev) => {
+      const value = typeof next === 'function' ? next(prev) : next;
+      localStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(value));
+      return value;
+    });
+  };
+  return [plan, setPlan];
+}
+
+function WeeklyPlanPanel({ theme, analysis, plan, setPlan, onAddCalendarBlock }) {
+  const weekStart = parseDateInput(analysis.weekStartISO);
+
+  function updatePlanItem(id, key, value) {
+    setPlan((prev) => prev.map((item) => item.id === id ? { ...item, [key]: value } : item));
+  }
+
+  function addPlanItem() {
+    setPlan((prev) => [
+      ...prev,
+      {
+        id: `plan-${Date.now()}`,
+        dayOffset: 0,
+        start: '21:30',
+        end: '22:15',
+        category: 'investing',
+        title: '美股投資研究',
+      },
+    ]);
+  }
+
+  function removePlanItem(id) {
+    setPlan((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  function pushToCalendarText() {
+    const lines = plan.map((item) => planItemToCsvLine(item, weekStart)).filter(Boolean);
+    if (lines.length) onAddCalendarBlock(lines.join('\n'));
+  }
+
+  function exportICS() {
+    const ics = buildPlanICS(plan, weekStart);
+    downloadTextFile(`time-plan-${analysis.monthKey}.ics`, ics, 'text/calendar;charset=utf-8');
+  }
+
+  return (
+    <section className="weeklyPlanPanel" style={{ background: theme.surface, borderColor: theme.line }}>
+      <div className="trackerHead">
+        <div>
+          <span>週表</span>
+          <h2>{analysis.weekKey}</h2>
+        </div>
+        <div className="weeklyPlanActions">
+          <button className="miniTextButton" onClick={addPlanItem}>新增</button>
+          <button className="miniTextButton" onClick={pushToCalendarText}>套用到面板</button>
+          <button className="saveButton" onClick={exportICS}>
+            <Save size={16} />
+            匯出 .ics
+          </button>
+        </div>
+      </div>
+      <div className="weeklyPlanTable">
+        {plan.map((item) => (
+          <div className="weeklyPlanRow" key={item.id}>
+            <select value={item.dayOffset} onChange={(event) => updatePlanItem(item.id, 'dayOffset', Number(event.target.value))}>
+              {['一', '二', '三', '四', '五', '六', '日'].map((day, index) => <option key={day} value={index}>週{day}</option>)}
+            </select>
+            <input type="time" value={item.start} onChange={(event) => updatePlanItem(item.id, 'start', event.target.value)} />
+            <input type="time" value={item.end} onChange={(event) => updatePlanItem(item.id, 'end', event.target.value)} />
+            <select value={item.category} onChange={(event) => updatePlanItem(item.id, 'category', event.target.value)}>
+              {CATEGORY_DEFS.map((cat) => <option key={cat.key} value={cat.key}>{cat.label}</option>)}
+            </select>
+            <input value={item.title} onChange={(event) => updatePlanItem(item.id, 'title', event.target.value)} />
+            <button className="miniTextButton" onClick={() => removePlanItem(item.id)}>刪除</button>
+          </div>
+        ))}
+      </div>
+      <p className="syncHint">目前可匯出 Google Calendar 可匯入的 .ics。若要一鍵直接寫入 Google 日曆，需要另外接 Google OAuth client ID。</p>
+    </section>
+  );
 }
 
 function makeWeeklySnapshot(analysis) {
@@ -1078,6 +1187,81 @@ function dateAtTime(time) {
 function formatDateTime(date) {
   const pad = (value) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function formatDateInput(date) {
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function parseDateInput(value) {
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isFinite(parsed.getTime()) ? parsed : startOfWeek(new Date());
+}
+
+function dateFromWeekPlan(weekStart, dayOffset, time) {
+  const [hours = '0', minutes = '0'] = String(time || '00:00').split(':');
+  const date = new Date(weekStart);
+  date.setDate(weekStart.getDate() + Number(dayOffset || 0));
+  date.setHours(Number(hours), Number(minutes), 0, 0);
+  return date;
+}
+
+function planItemToCsvLine(item, weekStart) {
+  if (!item.title || !item.start || !item.end) return '';
+  const start = dateFromWeekPlan(weekStart, item.dayOffset, item.start);
+  let end = dateFromWeekPlan(weekStart, item.dayOffset, item.end);
+  if (end <= start) {
+    end = new Date(end);
+    end.setDate(end.getDate() + 1);
+  }
+  return `${calendarTitleForPomodoro(item)},${formatDateTime(start)},${formatDateTime(end)}`;
+}
+
+function buildPlanICS(plan, weekStart) {
+  const stamp = formatICSDate(new Date());
+  const events = plan.map((item) => {
+    if (!item.title || !item.start || !item.end) return '';
+    const start = dateFromWeekPlan(weekStart, item.dayOffset, item.start);
+    let end = dateFromWeekPlan(weekStart, item.dayOffset, item.end);
+    if (end <= start) {
+      end = new Date(end);
+      end.setDate(end.getDate() + 1);
+    }
+    const title = escapeICS(calendarTitleForPomodoro(item));
+    return [
+      'BEGIN:VEVENT',
+      `UID:${item.id}-${formatICSDate(start)}@time-panel`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART:${formatICSDate(start)}`,
+      `DTEND:${formatICSDate(end)}`,
+      `SUMMARY:${title}`,
+      `DESCRIPTION:${escapeICS('由時間對標面板週表匯出')}`,
+      'END:VEVENT',
+    ].join('\r\n');
+  }).filter(Boolean);
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Time Panel//Weekly Plan//ZH-TW', 'CALSCALE:GREGORIAN', ...events, 'END:VCALENDAR'].join('\r\n');
+}
+
+function formatICSDate(date) {
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}00`;
+}
+
+function escapeICS(text) {
+  return String(text || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
+}
+
+function downloadTextFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function formatClock(seconds) {
@@ -1306,6 +1490,7 @@ function analyzeCalendar(events, targets, adjustments, theme) {
     score,
     rows,
     weekKey: formatWeekKey(weekCapacity.weekStart),
+    weekStartISO: formatDateInput(weekCapacity.weekStart),
     monthKey: formatMonthKey(weekCapacity.weekStart),
     fixedWorkHours,
     totalBasisHours,
