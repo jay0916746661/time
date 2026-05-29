@@ -5,6 +5,7 @@ import {
   BarChart3,
   CalendarDays,
   CircleDot,
+  Compass,
   Gauge,
   Maximize2,
   Moon,
@@ -26,6 +27,31 @@ const AUTH_KEY = 'time-panel-auth';
 const TRACKING_KEY = 'time-panel-daily-records';
 
 const GCAL_STORAGE_KEY = 'gcal-ics-url';
+const TARGET_RATIO_KEY = 'time-panel-target-ratios';
+const POMODORO_KEY = 'time-panel-pomodoro-settings';
+
+const CATEGORY_DEFS = [
+  { key: 'dance', label: '舞蹈社交', target: 28, goal: '主要紓壓與高品質社交' },
+  { key: 'fitness', label: '健身體能', target: 15, goal: '維持身體狀態' },
+  { key: 'growth', label: 'AI / 成長', target: 22, goal: '長期能力與職涯槓桿' },
+  { key: 'music', label: '音樂副業', target: 12, goal: '吉他、轉售、作品累積' },
+  { key: 'social', label: '休閒陪伴', target: 10, goal: '關係與生活感' },
+  { key: 'daily', label: '日常瑣事', target: 6, goal: '集中處理生活維護' },
+  { key: 'recovery', label: '恢復休息', target: 7, goal: '避免過載' },
+];
+
+const CATEGORY_COLOR_KEYS = {
+  dance: 'accent',
+  fitness: 'focus',
+  growth: 'align',
+  music: 'gold',
+  social: 'accent',
+  daily: 'inkMute',
+  recovery: 'line',
+  work: 'gold',
+  workFlex: 'focus',
+  unclassified: 'inkMute',
+};
 
 const PALETTES = {
   ember: {
@@ -566,11 +592,12 @@ function parseICS(text) {
 function CalendarBoard({ theme }) {
   const [raw, setRaw] = useState(SAMPLE_CALENDAR_TEXT);
   const [records, setRecords] = useDailyRecords();
+  const [targets, setTargets] = useTargetRatios();
   const [icsUrl, setIcsUrl] = useState(() => localStorage.getItem(GCAL_STORAGE_KEY) || '');
   const [gcalLoading, setGcalLoading] = useState(false);
   const [gcalError, setGcalError] = useState('');
   const events = useMemo(() => parseCalendarText(raw), [raw]);
-  const analysis = useMemo(() => analyzeCalendar(events), [events]);
+  const analysis = useMemo(() => analyzeCalendar(events, targets, theme), [events, targets, theme]);
 
   useEffect(() => {
     const saved = localStorage.getItem(GCAL_STORAGE_KEY);
@@ -664,16 +691,92 @@ function CalendarBoard({ theme }) {
             <Target size={17} color={row.color} />
             <span>{row.label}</span>
             <strong>{row.hours.toFixed(1)}h</strong>
-            <div className="progressLine"><i style={{ width: `${Math.min(100, row.percent)}%`, background: row.color }} /></div>
+            <small>{row.actualPercent.toFixed(0)}% / 目標 {row.target}%</small>
+            <div className="progressLine"><i style={{ width: `${Math.min(100, row.actualPercent)}%`, background: row.color }} /></div>
           </div>
         ))}
+      </section>
+      <section className="alignmentGrid">
+        <div className="directionPanel" style={{ background: theme.surface, borderColor: theme.line }}>
+          <div className="trackerHead">
+            <div>
+              <span>方向校準</span>
+              <h2>可控時間 {analysis.controllableHours.toFixed(1)}h</h2>
+            </div>
+            <Compass size={18} color={theme.accent} />
+          </div>
+          <p>{analysis.directionNote}</p>
+          <div className="scoreBars">
+            {analysis.scoreParts.map((part) => (
+              <label key={part.label}>
+                <span>{part.label}</span>
+                <strong>{part.value}%</strong>
+                <div className="progressLine"><i style={{ width: `${part.value}%`, background: part.color }} /></div>
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="ratioTuner" style={{ background: theme.surface, borderColor: theme.line }}>
+          <div className="trackerHead">
+            <div>
+              <span>目標比例</span>
+              <h2>下週可控時間配置</h2>
+            </div>
+            <button className="miniTextButton" onClick={() => setTargets(defaultTargets())}>重設</button>
+          </div>
+          {CATEGORY_DEFS.map((cat) => (
+            <label className="ratioSlider" key={cat.key}>
+              <span>{cat.label}</span>
+              <input
+                type="range"
+                min="0"
+                max="40"
+                value={targets[cat.key] || 0}
+                onChange={(event) => setTargets((prev) => ({ ...prev, [cat.key]: Number(event.target.value) }))}
+              />
+              <strong>{targets[cat.key] || 0}%</strong>
+            </label>
+          ))}
+        </div>
       </section>
       <section className="insightList" style={{ background: theme.surface, borderColor: theme.line }}>
         {analysis.insights.map((item) => <p key={item}>{item}</p>)}
       </section>
+      <section className="plannerList" style={{ background: theme.surface, borderColor: theme.line }}>
+        <div className="trackerHead">
+          <div>
+            <span>下週建議</span>
+            <h2>依比例缺口排程</h2>
+          </div>
+        </div>
+        {analysis.recommendations.map((item) => <p key={item}>{item}</p>)}
+      </section>
+      <PomodoroPanel theme={theme} onAddCalendarBlock={(line) => setRaw((prev) => `${prev.trim()}\n${line}`.trim())} />
       <DailyTracker theme={theme} records={records} setRecords={setRecords} analysis={analysis} />
     </div>
   );
+}
+
+function defaultTargets() {
+  return CATEGORY_DEFS.reduce((acc, cat) => ({ ...acc, [cat.key]: cat.target }), {});
+}
+
+function useTargetRatios() {
+  const [targets, setTargetsState] = useState(() => {
+    try {
+      return { ...defaultTargets(), ...JSON.parse(localStorage.getItem(TARGET_RATIO_KEY) || '{}') };
+    } catch {
+      return defaultTargets();
+    }
+  });
+  const setTargets = (next) => {
+    setTargetsState((prev) => {
+      const value = typeof next === 'function' ? next(prev) : next;
+      localStorage.setItem(TARGET_RATIO_KEY, JSON.stringify(value));
+      return value;
+    });
+  };
+  return [targets, setTargets];
 }
 
 function useDailyRecords() {
@@ -692,15 +795,173 @@ function useDailyRecords() {
   return [records, saveRecords];
 }
 
+function defaultPomodoroSettings() {
+  return {
+    task: 'AI 專注時段',
+    category: 'growth',
+    startTime: '07:30',
+    focusMinutes: 25,
+    breakMinutes: 5,
+    rounds: 4,
+  };
+}
+
+function usePomodoroSettings() {
+  const [settings, setSettingsState] = useState(() => {
+    try {
+      return { ...defaultPomodoroSettings(), ...JSON.parse(localStorage.getItem(POMODORO_KEY) || '{}') };
+    } catch {
+      return defaultPomodoroSettings();
+    }
+  });
+  const setSettings = (next) => {
+    setSettingsState((prev) => {
+      const value = typeof next === 'function' ? next(prev) : next;
+      localStorage.setItem(POMODORO_KEY, JSON.stringify(value));
+      return value;
+    });
+  };
+  return [settings, setSettings];
+}
+
+function PomodoroPanel({ theme, onAddCalendarBlock }) {
+  const [settings, setSettings] = usePomodoroSettings();
+  const [phase, setPhase] = useState('focus');
+  const [running, setRunning] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(settings.focusMinutes * 60);
+  const [round, setRound] = useState(1);
+  const sessionMinutes = settings.focusMinutes * settings.rounds + settings.breakMinutes * Math.max(0, settings.rounds - 1);
+
+  useEffect(() => {
+    if (running) return;
+    setSecondsLeft((phase === 'focus' ? settings.focusMinutes : settings.breakMinutes) * 60);
+  }, [settings.focusMinutes, settings.breakMinutes, phase, running]);
+
+  useEffect(() => {
+    if (!running) return undefined;
+    const id = window.setInterval(() => {
+      setSecondsLeft((current) => {
+        if (current > 1) return current - 1;
+        setPhase((prevPhase) => {
+          if (prevPhase === 'focus' && round < settings.rounds) return 'break';
+          return 'focus';
+        });
+        setRound((currentRound) => {
+          if (phase === 'break') return Math.min(settings.rounds, currentRound + 1);
+          if (phase === 'focus' && currentRound >= settings.rounds) {
+            setRunning(false);
+            return 1;
+          }
+          return currentRound;
+        });
+        return (phase === 'focus' ? settings.breakMinutes : settings.focusMinutes) * 60;
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [running, phase, round, settings.breakMinutes, settings.focusMinutes, settings.rounds]);
+
+  function update(key, value) {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function resetTimer() {
+    setRunning(false);
+    setPhase('focus');
+    setRound(1);
+    setSecondsLeft(settings.focusMinutes * 60);
+  }
+
+  function addCalendarBlock() {
+    const start = dateAtTime(settings.startTime);
+    const end = new Date(start.getTime() + sessionMinutes * 60 * 1000);
+    onAddCalendarBlock(`${calendarTitleForPomodoro(settings)},${formatDateTime(start)},${formatDateTime(end)}`);
+  }
+
+  return (
+    <section className="pomodoroPanel" style={{ background: theme.surface, borderColor: theme.line }}>
+      <div className="trackerHead">
+        <div>
+          <span>番茄鐘設定</span>
+          <h2>{settings.task}</h2>
+        </div>
+        <div className="pomodoroTime">
+          <strong>{formatClock(secondsLeft)}</strong>
+          <span>{phase === 'focus' ? '專注' : '休息'} {round}/{settings.rounds}</span>
+        </div>
+      </div>
+      <div className="pomodoroGrid">
+        <label className="timeInput taskInput">
+          <span>項目</span>
+          <input value={settings.task} onChange={(event) => update('task', event.target.value)} />
+        </label>
+        <label className="timeInput">
+          <span>分類</span>
+          <select value={settings.category} onChange={(event) => update('category', event.target.value)}>
+            {CATEGORY_DEFS.map((cat) => <option key={cat.key} value={cat.key}>{cat.label}</option>)}
+          </select>
+        </label>
+        <label className="timeInput">
+          <span>開始</span>
+          <input type="time" value={settings.startTime} onChange={(event) => update('startTime', event.target.value)} />
+        </label>
+        <TimeInput label="專注分鐘" value={settings.focusMinutes} onChange={(v) => update('focusMinutes', Number(v || 0))} />
+        <TimeInput label="休息分鐘" value={settings.breakMinutes} onChange={(v) => update('breakMinutes', Number(v || 0))} />
+        <TimeInput label="輪數" value={settings.rounds} onChange={(v) => update('rounds', Number(v || 1))} />
+      </div>
+      <div className="pomodoroActions">
+        <button className="saveButton" onClick={() => setRunning((value) => !value)}>
+          <Timer size={16} />
+          {running ? '暫停' : '開始'}
+        </button>
+        <button className="miniTextButton" onClick={resetTimer}>重設計時</button>
+        <button className="miniTextButton" onClick={addCalendarBlock}>加入行程資料</button>
+        <span>整組約 {sessionMinutes} 分鐘，會被比例分析一起計算。</span>
+      </div>
+    </section>
+  );
+}
+
+function dateAtTime(time) {
+  const [hours = '0', minutes = '0'] = String(time || '00:00').split(':');
+  const date = new Date();
+  date.setHours(Number(hours), Number(minutes), 0, 0);
+  return date;
+}
+
+function formatDateTime(date) {
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function formatClock(seconds) {
+  const safe = Math.max(0, seconds);
+  const minutes = Math.floor(safe / 60);
+  const rest = safe % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
+}
+
+function calendarTitleForPomodoro(settings) {
+  const prefix = {
+    dance: '練舞',
+    fitness: '健身',
+    growth: 'AI',
+    music: '吉他',
+    social: '社交',
+    daily: '行政',
+    recovery: '休息',
+  }[settings.category] || '';
+  return `${prefix} ${settings.task}`.trim();
+}
+
 function DailyTracker({ theme, records, setRecords, analysis }) {
   const today = new Date().toISOString().slice(0, 10);
   const existing = records.find((record) => record.date === today);
   const defaults = existing || {
     date: today,
-    deep: Number((analysis.rows.find((row) => row.label === '深度與創作')?.hours || 0).toFixed(1)),
-    growth: Number((analysis.rows.find((row) => row.label === '學習與技能')?.hours || 0).toFixed(1)),
-    body: Number((analysis.rows.find((row) => row.label === '身體維護')?.hours || 0).toFixed(1)),
-    work: Number((analysis.rows.find((row) => row.label === '工作占用')?.hours || 0).toFixed(1)),
+    deep: Number((analysis.rows.find((row) => row.key === 'growth')?.hours || 0).toFixed(1)),
+    growth: Number((analysis.rows.find((row) => row.key === 'music')?.hours || 0).toFixed(1)),
+    body: Number((analysis.rows.find((row) => row.key === 'fitness')?.hours || 0).toFixed(1)),
+    work: Number((analysis.fixedWorkHours || 0).toFixed(1)),
     rest: 0,
     life: 0,
     note: '',
@@ -785,11 +1046,14 @@ function TimeInput({ label, value, onChange }) {
 }
 
 const SAMPLE_CALENDAR_TEXT = [
-  '上班,2026-05-27 09:00,2026-05-27 18:00',
-  '健身,2026-05-27 12:30,2026-05-27 13:30',
-  '練吉他,2026-05-27 19:45,2026-05-27 20:45',
-  '看書,2026-05-27 21:00,2026-05-27 21:30',
-  'FLOW,2026-05-27 21:45,2026-05-27 23:00',
+  '上班,2026-06-01 09:00,2026-06-01 18:00',
+  'AI 專注時段,2026-06-01 07:30,2026-06-01 08:30',
+  '健身 腳,2026-06-01 12:30,2026-06-01 13:30',
+  'Bachata 課,2026-06-01 20:00,2026-06-01 22:00',
+  '上班,2026-06-02 09:00,2026-06-02 18:00',
+  '吉他拍照文案,2026-06-02 19:30,2026-06-02 21:00',
+  'Minnie 晚餐,2026-06-03 19:00,2026-06-03 21:00',
+  'Flow 舞會,2026-06-06 21:30,2026-06-07 00:30',
 ].join('\n');
 
 function parseCalendarText(raw) {
@@ -798,47 +1062,128 @@ function parseCalendarText(raw) {
     const startDate = new Date(start.replace(' ', 'T'));
     const endDate = new Date(end.replace(' ', 'T'));
     const hours = Number.isFinite(endDate - startDate) ? Math.max(0, (endDate - startDate) / 36e5) : 0;
-    return { title, hours, category: inferCategory(title) };
+    return {
+      title,
+      startDate,
+      endDate,
+      hours,
+      hour: Number.isFinite(startDate.getTime()) ? startDate.getHours() : null,
+      day: Number.isFinite(startDate.getTime()) ? startDate.getDay() : null,
+      category: inferCategory(title),
+    };
   }).filter((event) => event.hours > 0);
 }
 
 function inferCategory(title) {
   const text = title.toLowerCase();
-  if (/上班|工作|meeting|會議|收款|補貨/.test(text)) return 'work';
-  if (/flow|ai|文案|拍照|整理|創作/.test(text)) return 'deep';
-  if (/吉他|看書|課|學|練舞|bachata|lv/.test(text)) return 'growth';
-  if (/健身|跑步|腳|運動/.test(text)) return 'body';
-  if (/睡|休息/.test(text)) return 'rest';
-  return 'life';
+  if (/上班|工作|meeting|會議|確認訂單|訂單|skyco|aeroband|9f/.test(text)) return 'work';
+  if (/bachata|blues|flow|barcade|練舞|舞會|跳舞/.test(text)) return 'dance';
+  if (/健身|重訓|跑步|腳|腿|運動|gym/.test(text)) return 'fitness';
+  if (/ai|code|coding|開發|系統|看書|日文|學習|讀書|技術/.test(text)) return 'growth';
+  if (/吉他|弦之音|resale|轉售|拍照|文案|jim\.visuals|修圖|調色/.test(text)) return 'music';
+  if (/晚餐|吃飯|烤肉|大安森林|聚會|朋友|minnie|社交|休閒/.test(text)) return 'social';
+  if (/倒垃圾|剪頭髮|整理|上傳|補貨|器材|行政|帳務/.test(text)) return 'daily';
+  if (/睡|休息|補眠|午睡|放空|恢復/.test(text)) return 'recovery';
+  return 'unclassified';
 }
 
-function analyzeCalendar(events) {
+function analyzeCalendar(events, targets, theme) {
   const totals = events.reduce((acc, event) => {
     acc[event.category] = (acc[event.category] || 0) + event.hours;
     return acc;
   }, {});
-  const focus = (totals.deep || 0) + (totals.growth || 0);
-  const body = totals.body || 0;
-  const work = totals.work || 0;
-  const rest = totals.rest || 0;
-  const score = Math.round(Math.min(100, 42 + focus * 8 + body * 6 + Math.min(rest, 8) * 2 - Math.max(0, work - 45) * 2));
-  const rows = [
-    { label: '深度與創作', hours: totals.deep || 0, percent: ((totals.deep || 0) / 8) * 100, color: '#d96c4a' },
-    { label: '學習與技能', hours: totals.growth || 0, percent: ((totals.growth || 0) / 7) * 100, color: '#5d87a8' },
-    { label: '身體維護', hours: body, percent: (body / 4) * 100, color: '#7aa27a' },
-    { label: '工作占用', hours: work, percent: (work / 45) * 100, color: '#c6a255' },
-  ];
+  const workHours = totals.work || 0;
+  const workDays = new Set(events.filter((event) => event.category === 'work' && event.day > 0 && event.day < 6).map((event) => event.startDate.toISOString().slice(0, 10))).size;
+  const workFlexHours = Math.min(workHours, workDays * 1.5);
+  const fixedWorkHours = Math.max(0, workHours - workFlexHours);
+  const categoryHours = { ...totals, workFlex: workFlexHours };
+  delete categoryHours.work;
+  const controllableHours = Object.entries(categoryHours).reduce((sum, [key, hours]) => (
+    key === 'unclassified' ? sum : sum + hours
+  ), 0);
+  const normalizedTargetTotal = CATEGORY_DEFS.reduce((sum, cat) => sum + Number(targets[cat.key] || 0), 0) || 100;
+  const rows = CATEGORY_DEFS.map((cat) => {
+    const hours = categoryHours[cat.key] || 0;
+    const actualPercent = controllableHours ? (hours / controllableHours) * 100 : 0;
+    const target = Math.round((Number(targets[cat.key] || 0) / normalizedTargetTotal) * 100);
+    const colorKey = CATEGORY_COLOR_KEYS[cat.key];
+    return {
+      key: cat.key,
+      label: cat.label,
+      goal: cat.goal,
+      hours,
+      actualPercent,
+      target,
+      delta: actualPercent - target,
+      color: theme[colorKey] || theme.accent,
+    };
+  });
+  const proportionError = rows.reduce((sum, row) => sum + Math.abs(row.delta), 0) / Math.max(1, rows.length);
+  const proportionFit = clamp(Math.round(100 - proportionError * 2.2), 0, 100);
+  const strategicHours = (categoryHours.growth || 0) + (categoryHours.fitness || 0) + (categoryHours.music || 0);
+  const strategicTarget = controllableHours * (((targets.growth || 0) + (targets.fitness || 0) + (targets.music || 0)) / normalizedTargetTotal);
+  const priorityFit = clamp(Math.round((strategicHours / Math.max(1, strategicTarget)) * 86), 0, 100);
+  const focusEvents = events.filter((event) => ['growth', 'music'].includes(event.category));
+  const focusQuality = focusEvents.length
+    ? Math.round(focusEvents.reduce((sum, event) => sum + focusWeight(event), 0) / focusEvents.length)
+    : 48;
+  const recoveryPercent = controllableHours ? ((categoryHours.recovery || 0) / controllableHours) * 100 : 0;
+  const recoveryBalance = clamp(Math.round(100 - Math.abs(recoveryPercent - 9) * 5), 35, 100);
+  const score = Math.round(proportionFit * .45 + priorityFit * .25 + focusQuality * .2 + recoveryBalance * .1);
+  const sortedGaps = [...rows].sort((a, b) => (b.target - b.actualPercent) - (a.target - a.actualPercent));
+  const topGap = sortedGaps[0];
+  const focus = (categoryHours.growth || 0) + (categoryHours.music || 0);
+  const body = categoryHours.fitness || 0;
   return {
     score,
     rows,
-    headline: focus >= 8 ? '專注與技能投入正在成形' : '可以再補一塊深度創作時間',
-    note: `已解析 ${events.length} 筆行程，依標題自動歸類為工作、深度、技能、身體、休息與生活。`,
-    insights: [
-      `深度/技能合計 ${focus.toFixed(1)} 小時，是最直接對標長期能力的區塊。`,
-      body >= 3 ? '身體維護頻率不錯，可以保留在中午或傍晚。' : '身體維護偏少，建議先固定兩個 30 分鐘區塊。',
-      work > 40 ? '工作占用偏高，晚間最好避免被零碎任務切碎。' : '工作量仍有餘裕，可以安排較完整的輸出時段。',
+    fixedWorkHours,
+    controllableHours,
+    headline: score >= 78 ? '時間配置大致對齊你的方向' : `下週優先補 ${topGap.label}`,
+    note: `已解析 ${events.length} 筆行程。早九晚六工作估為固定 ${fixedWorkHours.toFixed(1)}h，另抓出 ${workFlexHours.toFixed(1)}h 忙裡偷閒可活用時間。`,
+    directionNote: `你的核心方向是 AI 成長、舞蹈社交、健身、音樂副業並行。這週可控時間中，成長與副業合計 ${focus.toFixed(1)}h，健身 ${body.toFixed(1)}h，舞蹈 ${(categoryHours.dance || 0).toFixed(1)}h。`,
+    scoreParts: [
+      { label: '比例貼合', value: proportionFit, color: theme.accent },
+      { label: '優先級', value: priorityFit, color: theme.align },
+      { label: '專注品質', value: focusQuality, color: theme.focus },
+      { label: '恢復平衡', value: recoveryBalance, color: theme.gold },
     ],
+    insights: [
+      `可控時間比例用來看真實選擇，不讓固定工作把分析稀釋掉。`,
+      focusQuality >= 72 ? 'AI / 副業類事件有放在較好的時段，專注品質不錯。' : '高價值目標偏晚或偏碎，建議改放早晨或午間可活用時段。',
+      recoveryBalance >= 70 ? '恢復比例尚可，能支撐舞蹈與健身節奏。' : '恢復偏少，下週至少保護一個早睡或低刺激晚上。',
+    ],
+    recommendations: makeRecommendations(rows, controllableHours),
   };
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function focusWeight(event) {
+  if (event.hour === null) return 55;
+  if (event.hour >= 7 && event.hour <= 11) return 92;
+  if (event.hour >= 12 && event.hour <= 16) return 76;
+  if (event.hour >= 17 && event.hour <= 20) return 64;
+  return 46;
+}
+
+function makeRecommendations(rows, controllableHours) {
+  const gaps = rows
+    .map((row) => ({ ...row, gapHours: Math.max(0, ((row.target - row.actualPercent) / 100) * controllableHours) }))
+    .filter((row) => row.gapHours >= .75)
+    .sort((a, b) => b.gapHours - a.gapHours)
+    .slice(0, 3);
+  if (!gaps.length) return ['目前比例接近目標。下週重點不是加行程，而是保護既有高品質時段。'];
+  return gaps.map((row) => {
+    if (row.key === 'growth') return `補 ${row.gapHours.toFixed(1)}h AI / 成長：優先排 2 個早上 60-90 分鐘深度時段。`;
+    if (row.key === 'fitness') return `補 ${row.gapHours.toFixed(1)}h 健身：放進午休或下班前，避免擠壓舞蹈晚上。`;
+    if (row.key === 'dance') return `補 ${row.gapHours.toFixed(1)}h 舞蹈：選 1 場課或舞會即可，隔天早上保留恢復。`;
+    if (row.key === 'music') return `補 ${row.gapHours.toFixed(1)}h 音樂副業：週末下午集中處理吉他練習、拍照、文案。`;
+    if (row.key === 'recovery') return `補 ${row.gapHours.toFixed(1)}h 恢復：安排一個不社交的晚上，讓下週不透支。`;
+    return `補 ${row.gapHours.toFixed(1)}h ${row.label}：用整塊時間處理，少切碎。`;
+  });
 }
 
 function categoryLabel(cat) {

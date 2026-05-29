@@ -214,11 +214,12 @@ input {
 }
 
 .artboard.calendarArtboard {
-  height: 1060px;
+  height: 1540px;
 }
 
 .artboard.expanded.calendarArtboard {
   height: min(100vh - 96px, 920px);
+  overflow: auto;
 }
 
 .boardLayout {
@@ -446,6 +447,10 @@ input {
 .calendarInput,
 .insightList,
 .targetRow,
+.directionPanel,
+.ratioTuner,
+.plannerList,
+.pomodoroPanel,
 .dailyTracker {
   border: 1px solid;
 }
@@ -521,12 +526,12 @@ input {
 
 .targetRows {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 12px;
 }
 
 .targetRow {
-  min-height: 118px;
+  min-height: 132px;
   border-radius: 14px;
   padding: 14px;
   display: grid;
@@ -534,7 +539,143 @@ input {
 }
 
 .targetRow strong {
-  font-size: 25px;
+  font-size: 22px;
+}
+
+.targetRow small {
+  color: color-mix(in srgb, currentColor, transparent 42%);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.alignmentGrid {
+  display: grid;
+  grid-template-columns: .9fr 1.1fr;
+  gap: 16px;
+}
+
+.directionPanel,
+.ratioTuner,
+.plannerList,
+.pomodoroPanel {
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.directionPanel p,
+.plannerList p {
+  margin: 10px 0 0;
+  line-height: 1.55;
+  color: color-mix(in srgb, currentColor, transparent 26%);
+}
+
+.scoreBars {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.scoreBars label {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 7px 10px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.scoreBars .progressLine {
+  grid-column: 1 / -1;
+}
+
+.ratioTuner {
+  display: grid;
+  gap: 10px;
+}
+
+.ratioSlider {
+  display: grid;
+  grid-template-columns: 78px 1fr 42px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.ratioSlider input {
+  width: 100%;
+}
+
+.ratioSlider strong {
+  text-align: right;
+}
+
+.miniTextButton {
+  min-height: 30px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 10px;
+  background: rgba(100, 100, 90, .12);
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.pomodoroPanel {
+  display: grid;
+  gap: 14px;
+}
+
+.pomodoroTime {
+  min-width: 112px;
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.pomodoroTime strong {
+  font-size: 30px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.pomodoroTime span {
+  font-size: 12px;
+  font-weight: 800;
+  color: color-mix(in srgb, currentColor, transparent 42%);
+}
+
+.pomodoroGrid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr .8fr .75fr .75fr .65fr;
+  gap: 10px;
+}
+
+.taskInput {
+  min-width: 0;
+}
+
+.timeInput select {
+  width: 100%;
+  height: 34px;
+  border: 1px solid rgba(120, 120, 120, .2);
+  border-radius: 8px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, .46);
+  color: inherit;
+}
+
+.pomodoroActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.pomodoroActions span {
+  color: color-mix(in srgb, currentColor, transparent 42%);
+  font-size: 12px;
+  font-weight: 750;
 }
 
 .insightList {
@@ -982,6 +1123,15 @@ input {
   /* Tracker form: 3 columns */
   .trackerForm {
     grid-template-columns: repeat(3, 1fr);
+  }
+
+  .alignmentGrid,
+  .pomodoroGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .pomodoroTime {
+    justify-items: start;
   }
 
   /* Vitality: stack rings + metrics */
