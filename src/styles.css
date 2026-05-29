@@ -501,6 +501,21 @@ input {
   color: color-mix(in srgb, currentColor, transparent 28%);
 }
 
+.summaryStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.summaryStats b {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: rgba(120, 120, 120, .12);
+  font-size: 12px;
+  line-height: 1;
+}
+
 .calendarInput {
   border-radius: 16px;
   padding: 16px;

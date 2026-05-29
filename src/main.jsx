@@ -676,6 +676,11 @@ function CalendarBoard({ theme }) {
             <span>本週重點</span>
             <h2>{analysis.headline}</h2>
             <p>{analysis.note}</p>
+            <div className="summaryStats">
+              <b>下班總額 {analysis.offWorkTotalHours.toFixed(1)}h</b>
+              <b>週末假日 {analysis.weekendHours.toFixed(1)}h</b>
+              <b>剩餘可排 {analysis.openOffWorkHours.toFixed(1)}h</b>
+            </div>
           </div>
         </div>
         <div className="calendarInput" style={{ background: theme.surface, borderColor: theme.line }}>
@@ -701,7 +706,7 @@ function CalendarBoard({ theme }) {
           <div className="trackerHead">
             <div>
               <span>方向校準</span>
-              <h2>可控時間 {analysis.controllableHours.toFixed(1)}h</h2>
+              <h2>可控總額 {analysis.controllableHours.toFixed(1)}h</h2>
             </div>
             <Compass size={18} color={theme.accent} />
           </div>
@@ -1096,11 +1101,15 @@ function analyzeCalendar(events, targets, theme) {
   const workDays = new Set(events.filter((event) => event.category === 'work' && event.day > 0 && event.day < 6).map((event) => event.startDate.toISOString().slice(0, 10))).size;
   const workFlexHours = Math.min(workHours, workDays * 1.5);
   const fixedWorkHours = Math.max(0, workHours - workFlexHours);
+  const weekCapacity = estimateWeekCapacity(events);
+  const offWorkTotalHours = weekCapacity.weekdayOffHours + weekCapacity.weekendHours;
+  const plannedOffWorkHours = Object.entries(totals).reduce((sum, [key, hours]) => (
+    key === 'work' || key === 'unclassified' ? sum : sum + hours
+  ), 0);
+  const openOffWorkHours = Math.max(0, offWorkTotalHours - plannedOffWorkHours);
   const categoryHours = { ...totals, workFlex: workFlexHours };
   delete categoryHours.work;
-  const controllableHours = Object.entries(categoryHours).reduce((sum, [key, hours]) => (
-    key === 'unclassified' ? sum : sum + hours
-  ), 0);
+  const controllableHours = offWorkTotalHours + workFlexHours;
   const normalizedTargetTotal = CATEGORY_DEFS.reduce((sum, cat) => sum + Number(targets[cat.key] || 0), 0) || 100;
   const rows = CATEGORY_DEFS.map((cat) => {
     const hours = categoryHours[cat.key] || 0;
@@ -1138,10 +1147,13 @@ function analyzeCalendar(events, targets, theme) {
     score,
     rows,
     fixedWorkHours,
+    offWorkTotalHours,
+    weekendHours: weekCapacity.weekendHours,
+    openOffWorkHours,
     controllableHours,
     headline: score >= 78 ? '時間配置大致對齊你的方向' : `下週優先補 ${topGap.label}`,
-    note: `已解析 ${events.length} 筆行程。早九晚六工作估為固定 ${fixedWorkHours.toFixed(1)}h，另抓出 ${workFlexHours.toFixed(1)}h 忙裡偷閒可活用時間。`,
-    directionNote: `你的核心方向是 AI 成長、舞蹈社交、健身、音樂副業並行。這週可控時間中，成長與副業合計 ${focus.toFixed(1)}h，健身 ${body.toFixed(1)}h，舞蹈 ${(categoryHours.dance || 0).toFixed(1)}h。`,
+    note: `已解析 ${events.length} 筆行程。下班清醒總額含平日晚間/早晨 ${weekCapacity.weekdayOffHours.toFixed(1)}h 與週末假日 ${weekCapacity.weekendHours.toFixed(1)}h，另抓出 ${workFlexHours.toFixed(1)}h 忙裡偷閒可活用時間。`,
+    directionNote: `你的核心方向是 AI 成長、舞蹈社交、健身、音樂副業並行。這週下班已排 ${plannedOffWorkHours.toFixed(1)}h，尚有 ${openOffWorkHours.toFixed(1)}h 空白可配置；成長與副業合計 ${focus.toFixed(1)}h，健身 ${body.toFixed(1)}h，舞蹈 ${(categoryHours.dance || 0).toFixed(1)}h。`,
     scoreParts: [
       { label: '比例貼合', value: proportionFit, color: theme.accent },
       { label: '優先級', value: priorityFit, color: theme.align },
@@ -1155,6 +1167,35 @@ function analyzeCalendar(events, targets, theme) {
     ],
     recommendations: makeRecommendations(rows, controllableHours),
   };
+}
+
+function estimateWeekCapacity(events) {
+  const anchor = events.find((event) => event.startDate instanceof Date && Number.isFinite(event.startDate.getTime()))?.startDate || new Date();
+  const weekStart = startOfWeek(anchor);
+  let weekdays = 0;
+  let weekendDays = 0;
+  for (let offset = 0; offset < 7; offset += 1) {
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + offset);
+    const day = date.getDay();
+    if (day === 0 || day === 6) weekendDays += 1;
+    else weekdays += 1;
+  }
+  return {
+    weekdays,
+    weekendDays,
+    weekdayOffHours: weekdays * 7,
+    weekendHours: weekendDays * 16,
+  };
+}
+
+function startOfWeek(date) {
+  const copy = new Date(date);
+  const day = copy.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  copy.setDate(copy.getDate() + diff);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
 }
 
 function clamp(value, min, max) {
