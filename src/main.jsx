@@ -29,6 +29,8 @@ const TRACKING_KEY = 'time-panel-daily-records';
 const GCAL_STORAGE_KEY = 'gcal-ics-url';
 const TARGET_RATIO_KEY = 'time-panel-target-ratios';
 const POMODORO_KEY = 'time-panel-pomodoro-settings';
+const ADJUSTMENTS_KEY = 'time-panel-scenario-adjustments';
+const WEEKLY_HISTORY_KEY = 'time-panel-weekly-history';
 
 const CATEGORY_DEFS = [
   { key: 'dance', label: '舞蹈社交', target: 28, goal: '主要紓壓與高品質社交' },
@@ -593,11 +595,13 @@ function CalendarBoard({ theme }) {
   const [raw, setRaw] = useState(SAMPLE_CALENDAR_TEXT);
   const [records, setRecords] = useDailyRecords();
   const [targets, setTargets] = useTargetRatios();
+  const [adjustments, setAdjustments] = useScenarioAdjustments();
+  const [weeklyHistory, setWeeklyHistory] = useWeeklyHistory();
   const [icsUrl, setIcsUrl] = useState(() => localStorage.getItem(GCAL_STORAGE_KEY) || '');
   const [gcalLoading, setGcalLoading] = useState(false);
   const [gcalError, setGcalError] = useState('');
   const events = useMemo(() => parseCalendarText(raw), [raw]);
-  const analysis = useMemo(() => analyzeCalendar(events, targets, theme), [events, targets, theme]);
+  const analysis = useMemo(() => analyzeCalendar(events, targets, adjustments, theme), [events, targets, adjustments, theme]);
 
   useEffect(() => {
     const saved = localStorage.getItem(GCAL_STORAGE_KEY);
@@ -642,6 +646,14 @@ function CalendarBoard({ theme }) {
   function saveAndFetch() {
     localStorage.setItem(GCAL_STORAGE_KEY, icsUrl);
     fetchICS(icsUrl);
+  }
+
+  function saveWeeklySnapshot() {
+    const snapshot = makeWeeklySnapshot(analysis);
+    setWeeklyHistory((prev) => {
+      const withoutSameWeek = prev.filter((item) => item.weekKey !== snapshot.weekKey);
+      return [snapshot, ...withoutSameWeek].sort((a, b) => b.weekKey.localeCompare(a.weekKey)).slice(0, 36);
+    });
   }
 
   return (
@@ -698,6 +710,15 @@ function CalendarBoard({ theme }) {
             <strong>{row.hours.toFixed(1)}h</strong>
             <small>{row.actualPercent.toFixed(0)}% / 目標 {row.target}%</small>
             <div className="progressLine"><i style={{ width: `${Math.min(100, row.actualPercent)}%`, background: row.color }} /></div>
+            <label className="adjustInput">
+              <span>情境</span>
+              <input
+                type="number"
+                step="0.5"
+                value={adjustments[row.key] || 0}
+                onChange={(event) => setAdjustments((prev) => ({ ...prev, [row.key]: Number(event.target.value || 0) }))}
+              />
+            </label>
           </div>
         ))}
       </section>
@@ -747,6 +768,13 @@ function CalendarBoard({ theme }) {
       <section className="insightList" style={{ background: theme.surface, borderColor: theme.line }}>
         {analysis.insights.map((item) => <p key={item}>{item}</p>)}
       </section>
+      <HistoryPanel
+        theme={theme}
+        analysis={analysis}
+        history={weeklyHistory}
+        onSave={saveWeeklySnapshot}
+        onResetAdjustments={() => setAdjustments(defaultAdjustments())}
+      />
       <section className="plannerList" style={{ background: theme.surface, borderColor: theme.line }}>
         <div className="trackerHead">
           <div>
@@ -782,6 +810,114 @@ function useTargetRatios() {
     });
   };
   return [targets, setTargets];
+}
+
+function defaultAdjustments() {
+  return CATEGORY_DEFS.reduce((acc, cat) => ({ ...acc, [cat.key]: 0 }), {});
+}
+
+function useScenarioAdjustments() {
+  const [adjustments, setAdjustmentsState] = useState(() => {
+    try {
+      return { ...defaultAdjustments(), ...JSON.parse(localStorage.getItem(ADJUSTMENTS_KEY) || '{}') };
+    } catch {
+      return defaultAdjustments();
+    }
+  });
+  const setAdjustments = (next) => {
+    setAdjustmentsState((prev) => {
+      const value = typeof next === 'function' ? next(prev) : next;
+      localStorage.setItem(ADJUSTMENTS_KEY, JSON.stringify(value));
+      return value;
+    });
+  };
+  return [adjustments, setAdjustments];
+}
+
+function useWeeklyHistory() {
+  const [history, setHistoryState] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(WEEKLY_HISTORY_KEY) || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const setHistory = (next) => {
+    setHistoryState((prev) => {
+      const value = typeof next === 'function' ? next(prev) : next;
+      localStorage.setItem(WEEKLY_HISTORY_KEY, JSON.stringify(value));
+      return value;
+    });
+  };
+  return [history, setHistory];
+}
+
+function makeWeeklySnapshot(analysis) {
+  return {
+    weekKey: analysis.weekKey,
+    monthKey: analysis.monthKey,
+    savedAt: new Date().toISOString(),
+    score: analysis.score,
+    controllableHours: Number(analysis.controllableHours.toFixed(1)),
+    openOffWorkHours: Number(analysis.openOffWorkHours.toFixed(1)),
+    rows: analysis.rows.map((row) => ({
+      key: row.key,
+      label: row.label,
+      hours: Number(row.hours.toFixed(1)),
+      percent: Number(row.actualPercent.toFixed(1)),
+      target: row.target,
+    })),
+  };
+}
+
+function HistoryPanel({ theme, analysis, history, onSave, onResetAdjustments }) {
+  const currentMonth = analysis.monthKey;
+  const monthRows = history.filter((item) => item.monthKey === currentMonth);
+  const monthTotals = CATEGORY_DEFS.map((cat) => ({
+    ...cat,
+    hours: monthRows.reduce((sum, item) => sum + Number(item.rows.find((row) => row.key === cat.key)?.hours || 0), 0),
+  })).filter((item) => item.hours > 0).sort((a, b) => b.hours - a.hours).slice(0, 4);
+
+  return (
+    <section className="historyPanel" style={{ background: theme.surface, borderColor: theme.line }}>
+      <div className="trackerHead">
+        <div>
+          <span>週月回看</span>
+          <h2>{analysis.weekKey}</h2>
+        </div>
+        <div className="historyActions">
+          <button className="miniTextButton" onClick={onResetAdjustments}>清空情境</button>
+          <button className="saveButton" onClick={onSave}>
+            <Save size={16} />
+            儲存本週
+          </button>
+        </div>
+      </div>
+      <div className="historyGrid">
+        <div className="historyColumn">
+          <strong>最近週紀錄</strong>
+          {history.slice(0, 5).map((item) => (
+            <div className="historyRow" key={item.weekKey}>
+              <span>{item.weekKey}</span>
+              <b>{item.score}</b>
+              <small>{item.rows.slice(0, 3).map((row) => `${row.label} ${row.hours}h`).join(' · ')}</small>
+            </div>
+          ))}
+          {!history.length && <p>按「儲存本週」後，這裡會保留每週快照。</p>}
+        </div>
+        <div className="historyColumn">
+          <strong>本月累計</strong>
+          {monthTotals.map((item) => (
+            <div className="monthTotal" key={item.key}>
+              <span>{item.label}</span>
+              <b>{item.hours.toFixed(1)}h</b>
+            </div>
+          ))}
+          {!monthTotals.length && <p>本月還沒有儲存的週紀錄。</p>}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function useDailyRecords() {
@@ -1092,7 +1228,7 @@ function inferCategory(title) {
   return 'unclassified';
 }
 
-function analyzeCalendar(events, targets, theme) {
+function analyzeCalendar(events, targets, adjustments, theme) {
   const totals = events.reduce((acc, event) => {
     acc[event.category] = (acc[event.category] || 0) + event.hours;
     return acc;
@@ -1103,11 +1239,15 @@ function analyzeCalendar(events, targets, theme) {
   const fixedWorkHours = Math.max(0, workHours - workFlexHours);
   const weekCapacity = estimateWeekCapacity(events);
   const offWorkTotalHours = weekCapacity.weekdayOffHours + weekCapacity.weekendHours;
-  const plannedOffWorkHours = Object.entries(totals).reduce((sum, [key, hours]) => (
+  const adjustedTotals = { ...totals };
+  for (const cat of CATEGORY_DEFS) {
+    adjustedTotals[cat.key] = Math.max(0, (adjustedTotals[cat.key] || 0) + Number(adjustments[cat.key] || 0));
+  }
+  const plannedOffWorkHours = Object.entries(adjustedTotals).reduce((sum, [key, hours]) => (
     key === 'work' || key === 'unclassified' ? sum : sum + hours
   ), 0);
   const openOffWorkHours = Math.max(0, offWorkTotalHours - plannedOffWorkHours);
-  const categoryHours = { ...totals, workFlex: workFlexHours };
+  const categoryHours = { ...adjustedTotals, workFlex: workFlexHours };
   delete categoryHours.work;
   const controllableHours = offWorkTotalHours + workFlexHours;
   const normalizedTargetTotal = CATEGORY_DEFS.reduce((sum, cat) => sum + Number(targets[cat.key] || 0), 0) || 100;
@@ -1146,6 +1286,8 @@ function analyzeCalendar(events, targets, theme) {
   return {
     score,
     rows,
+    weekKey: formatWeekKey(weekCapacity.weekStart),
+    monthKey: formatMonthKey(weekCapacity.weekStart),
     fixedWorkHours,
     offWorkTotalHours,
     weekendHours: weekCapacity.weekendHours,
@@ -1182,6 +1324,7 @@ function estimateWeekCapacity(events) {
     else weekdays += 1;
   }
   return {
+    weekStart,
     weekdays,
     weekendDays,
     weekdayOffHours: weekdays * 7,
@@ -1196,6 +1339,20 @@ function startOfWeek(date) {
   copy.setDate(copy.getDate() + diff);
   copy.setHours(0, 0, 0, 0);
   return copy;
+}
+
+function formatWeekKey(date) {
+  const end = new Date(date);
+  end.setDate(date.getDate() + 6);
+  return `${formatShortDate(date)}-${formatShortDate(end)}`;
+}
+
+function formatMonthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function formatShortDate(date) {
+  return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
 }
 
 function clamp(value, min, max) {
