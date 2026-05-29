@@ -37,11 +37,12 @@ const CATEGORY_DEFS = [
   { key: 'fitness', label: '健身體能', target: 14, goal: '維持身體狀態' },
   { key: 'growth', label: 'AI / 成長', target: 18, goal: '長期能力與職涯槓桿' },
   { key: 'reading', label: '閱讀看書', target: 8, goal: '閱讀、輸入、知識沉澱' },
+  { key: 'investing', label: '美股投資研究', target: 7, goal: '美股、財報、投資資訊研究' },
   { key: 'photo', label: '街拍抓拍', target: 10, goal: '街頭觀察、抓拍、作品素材' },
-  { key: 'music', label: '吉他錄音創作', target: 11, goal: '練吉他、錄音、demo 創作' },
-  { key: 'social', label: '休閒陪伴', target: 8, goal: '關係與生活感' },
-  { key: 'daily', label: '日常瑣事', target: 4, goal: '集中處理生活維護' },
-  { key: 'recovery', label: '恢復休息', target: 3, goal: '避免過載' },
+  { key: 'music', label: '吉他錄音創作', target: 10, goal: '練吉他、錄音、demo 創作' },
+  { key: 'social', label: '休閒陪伴', target: 7, goal: '關係與生活感' },
+  { key: 'daily', label: '日常瑣事', target: 3, goal: '集中處理生活維護' },
+  { key: 'recovery', label: '恢復休息', target: 1, goal: '避免過載' },
 ];
 
 const CATEGORY_COLOR_KEYS = {
@@ -49,6 +50,7 @@ const CATEGORY_COLOR_KEYS = {
   fitness: 'focus',
   growth: 'align',
   reading: 'focus',
+  investing: 'align',
   photo: 'accent',
   music: 'gold',
   social: 'accent',
@@ -712,7 +714,7 @@ function CalendarBoard({ theme }) {
             <Target size={17} color={row.color} />
             <span>{row.label}</span>
             <strong>{row.hours.toFixed(1)}h</strong>
-            <small>{row.actualPercent.toFixed(0)}% / 目標 {row.target}%</small>
+            <small>總 {row.totalPercent.toFixed(0)}% · 扣工 {row.actualPercent.toFixed(0)}% / 目標 {row.target}%</small>
             <div className="progressLine"><i style={{ width: `${Math.min(100, row.actualPercent)}%`, background: row.color }} /></div>
             <label className="adjustInput">
               <span>情境</span>
@@ -1091,6 +1093,7 @@ function calendarTitleForPomodoro(settings) {
     fitness: '健身',
     growth: 'AI',
     reading: '閱讀',
+    investing: '美股',
     photo: '街拍',
     music: '吉他',
     social: '社交',
@@ -1196,6 +1199,7 @@ const SAMPLE_CALENDAR_TEXT = [
   '上班,2026-06-01 09:00,2026-06-01 18:00',
   'AI 專注時段,2026-06-01 07:30,2026-06-01 08:30',
   '看書,2026-06-01 22:20,2026-06-01 23:00',
+  '美股投資研究,2026-06-04 21:30,2026-06-04 22:30',
   '健身 腳,2026-06-01 12:30,2026-06-01 13:30',
   'Bachata 課,2026-06-01 20:00,2026-06-01 22:00',
   '上班,2026-06-02 09:00,2026-06-02 18:00',
@@ -1230,6 +1234,7 @@ function inferCategory(title) {
   if (/bachata|blues|flow|barcade|練舞|舞會|跳舞/.test(text)) return 'dance';
   if (/健身|重訓|跑步|腳|腿|運動|gym/.test(text)) return 'fitness';
   if (/看書|讀書|閱讀|書單|讀本|book|reading/.test(text)) return 'reading';
+  if (/美股|股票|投資|財報|etf|nasdaq|nyse|market|stock|earnings|portfolio/.test(text)) return 'investing';
   if (/ai|code|coding|開發|系統|日文|學習|技術/.test(text)) return 'growth';
   if (/街拍|抓拍|攝影|拍攝|掃街|外拍|人像|street|photo|photography/.test(text)) return 'photo';
   if (/吉他|錄音|創作|demo|編曲|作曲|riff|伴奏|弦之音|resale|轉售|拍照|文案|jim\.visuals|修圖|調色/.test(text)) return 'music';
@@ -1261,10 +1266,12 @@ function analyzeCalendar(events, targets, adjustments, theme) {
   const categoryHours = { ...adjustedTotals, workFlex: workFlexHours };
   delete categoryHours.work;
   const controllableHours = offWorkTotalHours + workFlexHours;
+  const totalBasisHours = fixedWorkHours + controllableHours;
   const normalizedTargetTotal = CATEGORY_DEFS.reduce((sum, cat) => sum + Number(targets[cat.key] || 0), 0) || 100;
   const rows = CATEGORY_DEFS.map((cat) => {
     const hours = categoryHours[cat.key] || 0;
     const actualPercent = controllableHours ? (hours / controllableHours) * 100 : 0;
+    const totalPercent = totalBasisHours ? (hours / totalBasisHours) * 100 : 0;
     const target = Math.round((Number(targets[cat.key] || 0) / normalizedTargetTotal) * 100);
     const colorKey = CATEGORY_COLOR_KEYS[cat.key];
     return {
@@ -1273,6 +1280,7 @@ function analyzeCalendar(events, targets, adjustments, theme) {
       goal: cat.goal,
       hours,
       actualPercent,
+      totalPercent,
       target,
       delta: actualPercent - target,
       color: theme[colorKey] || theme.accent,
@@ -1280,10 +1288,10 @@ function analyzeCalendar(events, targets, adjustments, theme) {
   });
   const proportionError = rows.reduce((sum, row) => sum + Math.abs(row.delta), 0) / Math.max(1, rows.length);
   const proportionFit = clamp(Math.round(100 - proportionError * 2.2), 0, 100);
-  const strategicHours = (categoryHours.growth || 0) + (categoryHours.fitness || 0) + (categoryHours.music || 0) + (categoryHours.reading || 0);
-  const strategicTarget = controllableHours * (((targets.growth || 0) + (targets.fitness || 0) + (targets.music || 0) + (targets.photo || 0) + (targets.reading || 0)) / normalizedTargetTotal);
+  const strategicHours = (categoryHours.growth || 0) + (categoryHours.fitness || 0) + (categoryHours.music || 0) + (categoryHours.reading || 0) + (categoryHours.investing || 0);
+  const strategicTarget = controllableHours * (((targets.growth || 0) + (targets.fitness || 0) + (targets.music || 0) + (targets.photo || 0) + (targets.reading || 0) + (targets.investing || 0)) / normalizedTargetTotal);
   const priorityFit = clamp(Math.round((strategicHours / Math.max(1, strategicTarget)) * 86), 0, 100);
-  const focusEvents = events.filter((event) => ['growth', 'music', 'photo'].includes(event.category));
+  const focusEvents = events.filter((event) => ['growth', 'music', 'photo', 'investing'].includes(event.category));
   const focusQuality = focusEvents.length
     ? Math.round(focusEvents.reduce((sum, event) => sum + focusWeight(event), 0) / focusEvents.length)
     : 48;
@@ -1292,7 +1300,7 @@ function analyzeCalendar(events, targets, adjustments, theme) {
   const score = Math.round(proportionFit * .45 + priorityFit * .25 + focusQuality * .2 + recoveryBalance * .1);
   const sortedGaps = [...rows].sort((a, b) => (b.target - b.actualPercent) - (a.target - a.actualPercent));
   const topGap = sortedGaps[0];
-  const focus = (categoryHours.growth || 0) + (categoryHours.music || 0) + (categoryHours.photo || 0) + (categoryHours.reading || 0);
+  const focus = (categoryHours.growth || 0) + (categoryHours.music || 0) + (categoryHours.photo || 0) + (categoryHours.reading || 0) + (categoryHours.investing || 0);
   const body = categoryHours.fitness || 0;
   return {
     score,
@@ -1300,13 +1308,14 @@ function analyzeCalendar(events, targets, adjustments, theme) {
     weekKey: formatWeekKey(weekCapacity.weekStart),
     monthKey: formatMonthKey(weekCapacity.weekStart),
     fixedWorkHours,
+    totalBasisHours,
     offWorkTotalHours,
     weekendHours: weekCapacity.weekendHours,
     openOffWorkHours,
     controllableHours,
     headline: score >= 78 ? '時間配置大致對齊你的方向' : `下週優先補 ${topGap.label}`,
     note: `已解析 ${events.length} 筆行程。下班清醒總額含平日晚間/早晨 ${weekCapacity.weekdayOffHours.toFixed(1)}h 與週末假日 ${weekCapacity.weekendHours.toFixed(1)}h，另抓出 ${workFlexHours.toFixed(1)}h 忙裡偷閒可活用時間。`,
-    directionNote: `你的核心方向是 AI 成長、閱讀看書、舞蹈社交、健身、街拍抓拍、吉他錄音創作並行。這週下班已排 ${plannedOffWorkHours.toFixed(1)}h，尚有 ${openOffWorkHours.toFixed(1)}h 空白可配置；成長/閱讀/影像/創作合計 ${focus.toFixed(1)}h，健身 ${body.toFixed(1)}h，舞蹈 ${(categoryHours.dance || 0).toFixed(1)}h。`,
+    directionNote: `你的核心方向是 AI 成長、閱讀看書、美股投資研究、舞蹈社交、健身、街拍抓拍、吉他錄音創作並行。這週下班已排 ${plannedOffWorkHours.toFixed(1)}h，尚有 ${openOffWorkHours.toFixed(1)}h 空白可配置；扣掉工作後的成長/閱讀/投資/影像/創作合計 ${focus.toFixed(1)}h，健身 ${body.toFixed(1)}h，舞蹈 ${(categoryHours.dance || 0).toFixed(1)}h。`,
     scoreParts: [
       { label: '比例貼合', value: proportionFit, color: theme.accent },
       { label: '優先級', value: priorityFit, color: theme.align },
@@ -1315,7 +1324,7 @@ function analyzeCalendar(events, targets, adjustments, theme) {
     ],
     insights: [
       `可控時間比例用來看真實選擇，不讓固定工作把分析稀釋掉。`,
-      focusQuality >= 72 ? 'AI / 影像 / 吉他創作類事件有放在較好的時段，專注品質不錯。' : '高價值目標偏晚或偏碎，建議改放早晨、午間或週末日光時段。',
+      focusQuality >= 72 ? 'AI / 投資 / 影像 / 吉他創作類事件有放在較好的時段，專注品質不錯。' : '高價值目標偏晚或偏碎，建議改放早晨、午間或週末日光時段。',
       recoveryBalance >= 70 ? '恢復比例尚可，能支撐舞蹈與健身節奏。' : '恢復偏少，下週至少保護一個早睡或低刺激晚上。',
     ],
     recommendations: makeRecommendations(rows, controllableHours),
@@ -1388,6 +1397,7 @@ function makeRecommendations(rows, controllableHours) {
   return gaps.map((row) => {
     if (row.key === 'growth') return `補 ${row.gapHours.toFixed(1)}h AI / 成長：優先排 2 個早上 60-90 分鐘深度時段。`;
     if (row.key === 'reading') return `補 ${row.gapHours.toFixed(1)}h 閱讀看書：排睡前 30 分鐘或週末一段 90 分鐘輸入。`;
+    if (row.key === 'investing') return `補 ${row.gapHours.toFixed(1)}h 美股投資研究：可固定 21:30 做財報、ETF、持倉與市場筆記。`;
     if (row.key === 'fitness') return `補 ${row.gapHours.toFixed(1)}h 健身：放進午休或下班前，避免擠壓舞蹈晚上。`;
     if (row.key === 'dance') return `補 ${row.gapHours.toFixed(1)}h 舞蹈：選 1 場課或舞會即可，隔天早上保留恢復。`;
     if (row.key === 'photo') return `補 ${row.gapHours.toFixed(1)}h 街拍抓拍：優先排週末下午或平日黃昏，留 30 分鐘整理選片。`;
