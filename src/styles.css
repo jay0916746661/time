@@ -459,6 +459,10 @@ input {
 .longHero,
 .horizonCard,
 .longPanel,
+.lifeHero,
+.lifeMetric,
+.sheetTabs,
+.sheetPanel,
 .gcalBar {
   border: 1px solid;
 }
@@ -828,6 +832,141 @@ input {
 
 .longPanel .targetRows {
   grid-template-columns: repeat(3, 1fr);
+}
+
+.lifeBoard {
+  gap: 16px;
+}
+
+.lifeSummary {
+  display: grid;
+  grid-template-columns: 1.45fr repeat(3, 1fr);
+  gap: 12px;
+}
+
+.lifeHero,
+.lifeMetric {
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.lifeHero {
+  min-height: 150px;
+}
+
+.lifeHero span,
+.lifeMetric span,
+.sheetHead span {
+  color: color-mix(in srgb, currentColor, transparent 42%);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.lifeHero strong,
+.lifeMetric strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 42px;
+  line-height: 1;
+}
+
+.lifeHero p {
+  margin: 10px 0 0;
+  line-height: 1.5;
+  color: color-mix(in srgb, currentColor, transparent 30%);
+}
+
+.sheetTabs {
+  border-radius: 14px;
+  padding: 10px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.sheetTabs button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: rgba(120, 120, 120, .1);
+  color: inherit;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.sheetTabs button.active {
+  background: #202018;
+  color: #fff;
+}
+
+.sheetPanel {
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.sheetHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
+}
+
+.sheetHead h2 {
+  margin: 4px 0 0;
+  font-size: 26px;
+}
+
+.sheetHead p {
+  margin: 5px 0 0;
+  color: color-mix(in srgb, currentColor, transparent 34%);
+}
+
+.sheetTableWrap {
+  margin-top: 14px;
+  overflow: auto;
+  border: 1px solid rgba(120, 120, 120, .14);
+  border-radius: 10px;
+}
+
+.sheetTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 620px;
+}
+
+.sheetTable th {
+  height: 38px;
+  padding: 0 10px;
+  background: rgba(120, 120, 120, .08);
+  text-align: left;
+  font-size: 12px;
+  color: color-mix(in srgb, currentColor, transparent 34%);
+}
+
+.sheetTable td {
+  border-top: 1px solid rgba(120, 120, 120, .12);
+  padding: 6px;
+}
+
+.sheetTable input {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 0 8px;
+  background: transparent;
+  color: inherit;
+}
+
+.sheetTable input:focus {
+  border-color: rgba(120, 120, 120, .28);
+  background: rgba(255, 255, 255, .52);
+  outline: none;
 }
 
 .insightList {

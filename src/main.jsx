@@ -23,6 +23,7 @@ const AUTH_KEY = 'time-panel-auth';
 const TRACKING_KEY = 'time-panel-daily-records';
 const WEEKLY_PLAN_KEY = 'time-panel-weekly-plan';
 const CALENDAR_RAW_KEY = 'time-panel-calendar-raw';
+const LIFE_OS_KEY = 'time-panel-life-os';
 
 const PALETTES = {
   ember: { name: '暖橘', accent: '#d96c4a', focus: '#7aa27a', align: '#5d87a8', gold: '#c6a255', bg: '#f6f4ef' },
@@ -78,7 +79,7 @@ function App() {
                 <span>{view === 'calendar' ? 'Google 日曆對標' : '比例儀表板'}</span>
               </div>
               <div className="artboard calendarArtboard" style={{ background: theme.page, color: theme.ink }}>
-                {view === 'calendar' ? <CalendarBoard theme={theme} /> : view === 'longterm' ? <LongTermBoard theme={theme} /> : <RatioBoard theme={theme} />}
+                {view === 'calendar' ? <CalendarBoard theme={theme} /> : view === 'longterm' ? <LongTermBoard theme={theme} /> : view === 'ops' ? <LifeOSBoard theme={theme} /> : <RatioBoard theme={theme} />}
               </div>
             </article>
           </div>
@@ -151,6 +152,7 @@ function TopBar({ theme, mode, setMode, panelOpen, setPanelOpen, setZoom }) {
 
 function Sidebar({ active, onSelect, theme }) {
   const items = [
+    { id: 'ops', label: '行事曆總控', icon: CheckCircle2 },
     { id: 'calendar', label: '日曆校正', icon: CalendarDays },
     { id: 'ratio', label: '比例總覽', icon: Gauge },
     { id: 'longterm', label: '週月長期', icon: BarChart3 },
@@ -257,6 +259,229 @@ function CalendarBoard({ theme }) {
       <DailyTracker theme={theme} records={records} setRecords={setRecords} analysis={analysis} />
     </div>
   );
+}
+
+const LIFE_SHEETS = [
+  {
+    id: 'dashboard',
+    name: '控制中心',
+    subtitle: '每天打開第一眼看的總覽',
+    columns: ['項目', '本週重點', '狀態'],
+    rows: [
+      ['工作', 'TOPPING規格表', '進行中'],
+      ['店家開發', '本週拜訪5家', '進行中'],
+      ['財務', '月收入目標35000', '追蹤'],
+      ['AI', 'Claude Design研究', '進行中'],
+      ['技能', '吉他5次練習', '追蹤'],
+    ],
+  },
+  {
+    id: 'tasks',
+    name: '工作待辦',
+    subtitle: '文件、出貨、追蹤事項',
+    columns: ['日期', '事項', '類型', '優先度', '狀態'],
+    rows: [
+      ['6/2', 'TOPPING規格表', '文件', '高', '進行中'],
+      ['6/2', '海洋樂器出貨', '出貨', '高', '未完成'],
+    ],
+  },
+  {
+    id: 'crm',
+    name: '店家開發 CRM',
+    subtitle: '拜訪、聯絡、下次追蹤',
+    columns: ['店家', '類型', '聯絡人', '狀態', '下次追蹤'],
+    rows: [
+      ['漢麟樂器', '鋼琴', '店長', '已接觸', '6/10'],
+      ['Sun Moon Audio', '音響', '老闆', '待聯絡', '6/5'],
+    ],
+  },
+  {
+    id: 'products',
+    name: '產品知識庫',
+    subtitle: '品牌型號、類別、賣點',
+    columns: ['品牌', '型號', '類別', '賣點'],
+    rows: [
+      ['TOPPING', 'DX5 II', 'DAC', '一體機'],
+      ['EVE', 'SC204', '監聽喇叭', '小空間'],
+    ],
+  },
+  {
+    id: 'finance',
+    name: '財務總表',
+    subtitle: '收入、支出、現金流',
+    columns: ['項目', '金額'],
+    rows: [
+      ['薪資', ''],
+      ['攝影收入', ''],
+      ['Skycore', ''],
+      ['轉賣收入', ''],
+      ['股票獲利', ''],
+      ['房租', ''],
+      ['貸款', ''],
+      ['信用卡', ''],
+    ],
+  },
+  {
+    id: 'investing',
+    name: '投資追蹤',
+    subtitle: '成本、現價、報酬',
+    columns: ['股票', '成本', '現價', '報酬'],
+    rows: [
+      ['NVDA', '', '', ''],
+      ['TSLA', '', '', ''],
+      ['SOFI', '', '', ''],
+    ],
+  },
+  {
+    id: 'skills',
+    name: '技能樹',
+    subtitle: '本月目標與本週進度',
+    columns: ['技能', '本月目標', '本週進度'],
+    rows: [
+      ['吉他', '20小時', ''],
+      ['攝影', '4場拍攝', ''],
+      ['AI', '建立1個工作流', ''],
+    ],
+  },
+  {
+    id: 'opportunities',
+    name: '機會雷達',
+    subtitle: '想法、潛力、下一步',
+    columns: ['想法', '類型', '潛力', '下一步'],
+    rows: [
+      ['CCD相機', '轉賣', '高', '研究行情'],
+      ['黑膠店', '創業', '中', '市場調查'],
+    ],
+  },
+  {
+    id: 'network',
+    name: '人脈資料庫',
+    subtitle: '圈子與最後聯絡',
+    columns: ['姓名', '圈子', '最後聯絡'],
+    rows: [
+      ['花花', '攝影', ''],
+      ['Allison', '舞蹈', ''],
+      ['Michelle', 'Bachata', ''],
+    ],
+  },
+  {
+    id: 'review',
+    name: '每日回顧',
+    subtitle: '完成事項、心情、體力',
+    columns: ['日期', '完成事項', '心情', '體力'],
+    rows: [
+      ['6/2', '', '', ''],
+    ],
+  },
+];
+
+function LifeOSBoard({ theme }) {
+  const [activeSheetId, setActiveSheetId] = useState('dashboard');
+  const [sheets, setSheets] = useLifeOS();
+  const activeSheet = sheets.find((sheet) => sheet.id === activeSheetId) || sheets[0];
+  const dashboard = sheets.find((sheet) => sheet.id === 'dashboard');
+  const openTasks = countStatus(sheets.find((sheet) => sheet.id === 'tasks'), ['未完成', '進行中']);
+  const crmFollowups = countStatus(sheets.find((sheet) => sheet.id === 'crm'), ['待聯絡', '已接觸']);
+  const financeRows = sheets.find((sheet) => sheet.id === 'finance')?.rows || [];
+
+  function updateCell(rowIndex, colIndex, value) {
+    setSheets((prev) => prev.map((sheet) => {
+      if (sheet.id !== activeSheet.id) return sheet;
+      const rows = sheet.rows.map((row, index) => index === rowIndex ? row.map((cell, c) => c === colIndex ? value : cell) : row);
+      return { ...sheet, rows };
+    }));
+  }
+
+  function addRow() {
+    setSheets((prev) => prev.map((sheet) => {
+      if (sheet.id !== activeSheet.id) return sheet;
+      return { ...sheet, rows: [...sheet.rows, sheet.columns.map(() => '')] };
+    }));
+  }
+
+  return (
+    <div className="boardLayout lifeBoard">
+      <BoardHeader kicker="Calendar OS / 10 Sheets" title="行事曆總控" theme={theme} />
+      <section className="lifeSummary">
+        <div className="lifeHero" style={{ background: theme.surface, borderColor: theme.line }}>
+          <span>本週作戰狀態</span>
+          <strong>{dashboard?.rows?.filter((row) => row[2] === '進行中').length || 0}</strong>
+          <p>進行中主線。每天先看這裡，再進入各 Sheet 補細節。</p>
+        </div>
+        <div className="lifeMetric" style={{ background: theme.surface, borderColor: theme.line }}>
+          <span>待辦</span>
+          <strong>{openTasks}</strong>
+        </div>
+        <div className="lifeMetric" style={{ background: theme.surface, borderColor: theme.line }}>
+          <span>店家追蹤</span>
+          <strong>{crmFollowups}</strong>
+        </div>
+        <div className="lifeMetric" style={{ background: theme.surface, borderColor: theme.line }}>
+          <span>財務項目</span>
+          <strong>{financeRows.length}</strong>
+        </div>
+      </section>
+      <section className="sheetTabs" style={{ background: theme.surface, borderColor: theme.line }}>
+        {sheets.map((sheet) => (
+          <button key={sheet.id} className={sheet.id === activeSheetId ? 'active' : ''} onClick={() => setActiveSheetId(sheet.id)}>
+            {sheet.name}
+          </button>
+        ))}
+      </section>
+      <section className="sheetPanel" style={{ background: theme.surface, borderColor: theme.line }}>
+        <div className="sheetHead">
+          <div>
+            <span>Sheet</span>
+            <h2>{activeSheet.name}</h2>
+            <p>{activeSheet.subtitle}</p>
+          </div>
+          <button className="saveButton" onClick={addRow}>新增一列</button>
+        </div>
+        <div className="sheetTableWrap">
+          <table className="sheetTable">
+            <thead>
+              <tr>{activeSheet.columns.map((column) => <th key={column}>{column}</th>)}</tr>
+            </thead>
+            <tbody>
+              {activeSheet.rows.map((row, rowIndex) => (
+                <tr key={`${activeSheet.id}-${rowIndex}`}>
+                  {activeSheet.columns.map((column, colIndex) => (
+                    <td key={column}>
+                      <input value={row[colIndex] || ''} onChange={(event) => updateCell(rowIndex, colIndex, event.target.value)} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function useLifeOS() {
+  const [sheets, setSheetsState] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LIFE_OS_KEY) || '[]');
+      return saved.length ? saved : LIFE_SHEETS;
+    } catch {
+      return LIFE_SHEETS;
+    }
+  });
+  const setSheets = (next) => {
+    setSheetsState((prev) => {
+      const value = typeof next === 'function' ? next(prev) : next;
+      localStorage.setItem(LIFE_OS_KEY, JSON.stringify(value));
+      return value;
+    });
+  };
+  return [sheets, setSheets];
+}
+
+function countStatus(sheet, statuses) {
+  if (!sheet) return 0;
+  return sheet.rows.filter((row) => row.some((cell) => statuses.includes(cell))).length;
 }
 
 function RatioBoard({ theme }) {
@@ -524,7 +749,9 @@ function TweaksPanel({ theme, palette, setPalette, view, setView, zoom, setZoom 
         <span>畫面</span>
         <select value={view} onChange={(event) => setView(event.target.value)}>
           <option value="calendar">日曆校正</option>
+          <option value="ops">行事曆總控</option>
           <option value="ratio">比例總覽</option>
+          <option value="longterm">週月長期</option>
         </select>
       </label>
       <div className="field">
