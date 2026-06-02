@@ -1,22 +1,18 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Activity,
   BarChart3,
   CalendarDays,
-  CircleDot,
-  Compass,
+  CheckCircle2,
   Gauge,
-  Maximize2,
+  LockKeyhole,
   Moon,
-  Orbit,
   PanelRightClose,
   PanelRightOpen,
-  Palette,
-  Save,
   RotateCcw,
+  Save,
   Sun,
-  Timer,
   Target,
   Zap,
 } from 'lucide-react';
@@ -25,101 +21,22 @@ import './styles.css';
 const PASSWORD_HASH = '821232b4b8d1078f2e1c7963bf29d503820410bfbac3d06977870a463e72263b';
 const AUTH_KEY = 'time-panel-auth';
 const TRACKING_KEY = 'time-panel-daily-records';
-
-const GCAL_STORAGE_KEY = 'gcal-ics-url';
-const TARGET_RATIO_KEY = 'time-panel-target-ratios';
-const POMODORO_KEY = 'time-panel-pomodoro-settings';
-const ADJUSTMENTS_KEY = 'time-panel-scenario-adjustments';
-const WEEKLY_HISTORY_KEY = 'time-panel-weekly-history';
 const WEEKLY_PLAN_KEY = 'time-panel-weekly-plan';
 
-const CATEGORY_DEFS = [
-  { key: 'dance', label: '舞蹈社交', target: 24, goal: '主要紓壓與高品質社交' },
-  { key: 'fitness', label: '健身體能', target: 14, goal: '維持身體狀態' },
-  { key: 'growth', label: 'AI / 成長', target: 18, goal: '長期能力與職涯槓桿' },
-  { key: 'reading', label: '閱讀看書', target: 8, goal: '閱讀、輸入、知識沉澱' },
-  { key: 'investing', label: '美股投資研究', target: 7, goal: '美股、財報、投資資訊研究' },
-  { key: 'photo', label: '街拍抓拍', target: 10, goal: '街頭觀察、抓拍、作品素材' },
-  { key: 'music', label: '吉他錄音創作', target: 10, goal: '練吉他、錄音、demo 創作' },
-  { key: 'social', label: '休閒陪伴', target: 7, goal: '關係與生活感' },
-  { key: 'daily', label: '日常瑣事', target: 3, goal: '集中處理生活維護' },
-  { key: 'recovery', label: '恢復休息', target: 1, goal: '避免過載' },
-];
-
-const CATEGORY_COLOR_KEYS = {
-  dance: 'accent',
-  fitness: 'focus',
-  growth: 'align',
-  reading: 'focus',
-  investing: 'align',
-  photo: 'accent',
-  music: 'gold',
-  social: 'accent',
-  daily: 'inkMute',
-  recovery: 'line',
-  work: 'gold',
-  workFlex: 'focus',
-  unclassified: 'inkMute',
-};
-
 const PALETTES = {
-  ember: {
-    name: 'Ember',
-    accent: '#d96c4a',
-    focus: '#7aa27a',
-    align: '#5d87a8',
-    gold: '#c6a255',
-    bg: '#f6f4ef',
-  },
-  tide: {
-    name: 'Tide',
-    accent: '#2f88a7',
-    focus: '#74a891',
-    align: '#b7824e',
-    gold: '#c8a856',
-    bg: '#f3f7f6',
-  },
-  plum: {
-    name: 'Plum',
-    accent: '#9358a8',
-    focus: '#668f6c',
-    align: '#c17d55',
-    gold: '#d0aa53',
-    bg: '#f7f3f6',
-  },
-  graphite: {
-    name: 'Graphite',
-    accent: '#4f6b7a',
-    focus: '#927953',
-    align: '#6d8f79',
-    gold: '#b99a52',
-    bg: '#f4f3ef',
-  },
+  ember: { name: '暖橘', accent: '#d96c4a', focus: '#7aa27a', align: '#5d87a8', gold: '#c6a255', bg: '#f6f4ef' },
+  tide: { name: '潮汐', accent: '#2f88a7', focus: '#74a891', align: '#b7824e', gold: '#c8a856', bg: '#f3f7f6' },
+  plum: { name: '梅紫', accent: '#9358a8', focus: '#668f6c', align: '#c17d55', gold: '#d0aa53', bg: '#f7f3f6' },
+  graphite: { name: '石墨', accent: '#4f6b7a', focus: '#927953', align: '#6d8f79', gold: '#b99a52', bg: '#f4f3ef' },
 };
 
-const HOURS = [
-  'sleep','sleep','sleep','sleep','sleep','sleep',
-  'move','plan','admin','deep','deep','deep',
-  'break','admin','learn','learn','deep','deep',
-  'create','create','break','review','admin','sleep',
-];
-
-const WEEK = [
-  { day: 'Mon', focus: 6.4, deep: 3.8, align: 62 },
-  { day: 'Tue', focus: 7.9, deep: 5.2, align: 81 },
-  { day: 'Wed', focus: 5.2, deep: 2.4, align: 48 },
-  { day: 'Thu', focus: 8.6, deep: 6.0, align: 88 },
-  { day: 'Fri', focus: 7.0, deep: 4.4, align: 71 },
-  { day: 'Sat', focus: 7.2, deep: 4.8, align: 78 },
-  { day: 'Sun', focus: 3.8, deep: 1.6, align: 42 },
-];
-
-const GOALS = [
-  { label: 'Year', progress: 45, detail: 'Build a calm, durable product rhythm' },
-  { label: 'Quarter', progress: 62, detail: 'Ship 5 polished working prototypes' },
-  { label: 'Month', progress: 78, detail: 'Protect 140 hours of focused making' },
-  { label: 'Week', progress: 84, detail: 'Complete 12 deep-work sessions' },
-];
+const SAMPLE_CALENDAR_TEXT = [
+  '上班,2026-06-02 09:00,2026-06-02 18:00',
+  '練舞,2026-06-02 18:30,2026-06-02 19:30',
+  'BACHATA LV3,2026-06-02 19:30,2026-06-02 20:30',
+  'FLOW,2026-06-02 21:00,2026-06-02 22:30',
+  '看書,2026-06-02 23:00,2026-06-02 23:30',
+].join('\n');
 
 function makeTheme(mode, paletteKey) {
   const p = PALETTES[paletteKey];
@@ -134,7 +51,6 @@ function makeTheme(mode, paletteKey) {
     inkSoft: dark ? 'rgba(244,241,232,.70)' : 'rgba(32,32,24,.66)',
     inkMute: dark ? 'rgba(244,241,232,.42)' : 'rgba(32,32,24,.42)',
     line: dark ? 'rgba(244,241,232,.11)' : 'rgba(32,32,24,.11)',
-    shadow: dark ? '0 18px 50px rgba(0,0,0,.35)' : '0 18px 50px rgba(47,43,35,.12)',
   };
 }
 
@@ -142,40 +58,32 @@ function App() {
   const [unlocked, setUnlocked] = useState(() => localStorage.getItem(AUTH_KEY) === '1');
   const [mode, setMode] = useState('light');
   const [palette, setPalette] = useState('ember');
-  const [density, setDensity] = useState('regular');
   const [view, setView] = useState('calendar');
   const [zoom, setZoom] = useState(88);
   const [panelOpen, setPanelOpen] = useState(true);
-  const [focus, setFocus] = useState(null);
   const theme = useMemo(() => makeTheme(mode, palette), [mode, palette]);
 
-  const controls = {
-    mode, setMode, palette, setPalette, density, setDensity, view, setView,
-    zoom, setZoom, panelOpen, setPanelOpen,
-  };
-
-  if (!unlocked) {
-    return <PasswordGate onUnlock={() => setUnlocked(true)} />;
-  }
+  if (!unlocked) return <PasswordGate onUnlock={() => setUnlocked(true)} />;
 
   return (
     <main className="app" style={{ '--page': theme.page, '--ink': theme.ink }}>
-      <TopBar theme={theme} controls={controls} />
+      <TopBar theme={theme} mode={mode} setMode={setMode} panelOpen={panelOpen} setPanelOpen={setPanelOpen} setZoom={setZoom} />
       <div className="workspace">
-        <Sidebar theme={theme} active={view} onSelect={setView} />
-        <DesignCanvas theme={theme} density={density} view={view} zoom={zoom} onFocus={setFocus} />
-        {panelOpen && <TweaksPanel theme={theme} controls={controls} />}
+        <Sidebar active={view} onSelect={setView} theme={theme} />
+        <section className="canvas">
+          <div className="canvasGrid" style={{ transform: `scale(${zoom / 100})` }}>
+            <article className="artboardFrame wideFrame">
+              <div className="frameHeader">
+                <span>{view === 'calendar' ? 'Google 日曆對標' : '比例儀表板'}</span>
+              </div>
+              <div className="artboard calendarArtboard" style={{ background: theme.page, color: theme.ink }}>
+                {view === 'calendar' ? <CalendarBoard theme={theme} /> : <RatioBoard theme={theme} />}
+              </div>
+            </article>
+          </div>
+        </section>
+        {panelOpen && <TweaksPanel theme={theme} palette={palette} setPalette={setPalette} view={view} setView={setView} zoom={zoom} setZoom={setZoom} />}
       </div>
-      {focus && (
-        <div className="focusOverlay" onClick={() => setFocus(null)}>
-          <button className="iconButton closeFocus" aria-label="Close focus view" onClick={() => setFocus(null)}>
-            <Maximize2 size={17} />
-          </button>
-          <section className="focusShell" onClick={(event) => event.stopPropagation()}>
-            <Artboard kind={focus} theme={theme} density={density} expanded />
-          </section>
-        </div>
-      )}
     </main>
   );
 }
@@ -198,16 +106,10 @@ function PasswordGate({ onUnlock }) {
   return (
     <main className="lockScreen">
       <form className="lockCard" onSubmit={submit}>
-        <div className="brandMark"><Activity size={18} /></div>
+        <div className="brandMark"><LockKeyhole size={18} /></div>
         <h1>時間對標面板</h1>
         <p>輸入密碼後開始查看與記錄你的每日時間。</p>
-        <input
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          placeholder="密碼"
-          autoFocus
-        />
+        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="密碼" autoFocus />
         {error && <span className="lockError">{error}</span>}
         <button type="submit">進入面板</button>
       </form>
@@ -221,42 +123,35 @@ async function sha256(text) {
   return Array.from(new Uint8Array(buffer)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-function TopBar({ theme, controls }) {
+function TopBar({ theme, mode, setMode, panelOpen, setPanelOpen, setZoom }) {
   return (
     <header className="topbar" style={{ background: theme.surface, borderColor: theme.line }}>
       <div className="brand">
         <div className="brandMark"><Activity size={18} /></div>
         <div>
           <strong>時間對標面板</strong>
-          <span>Google 日曆分析畫布</span>
+          <span>日曆、校正、比例追蹤</span>
         </div>
       </div>
       <div className="topActions">
         <Segmented
-          value={controls.mode}
-          onChange={controls.setMode}
-          options={[
-            { value: 'light', icon: Sun, label: '淺色' },
-            { value: 'dark', icon: Moon, label: '深色' },
-          ]}
+          value={mode}
+          onChange={setMode}
+          options={[{ value: 'light', icon: Sun, label: '淺色' }, { value: 'dark', icon: Moon, label: '深色' }]}
         />
-        <button className="iconButton" title="重設縮放" onClick={() => controls.setZoom(88)}>
-          <RotateCcw size={16} />
-        </button>
-        <button className="iconButton" title="開關調整面板" onClick={() => controls.setPanelOpen(!controls.panelOpen)}>
-          {controls.panelOpen ? <PanelRightClose size={17} /> : <PanelRightOpen size={17} />}
+        <button className="iconButton" title="重設縮放" onClick={() => setZoom(88)}><RotateCcw size={16} /></button>
+        <button className="iconButton" title="開關調整面板" onClick={() => setPanelOpen(!panelOpen)}>
+          {panelOpen ? <PanelRightClose size={17} /> : <PanelRightOpen size={17} />}
         </button>
       </div>
     </header>
   );
 }
 
-function Sidebar({ theme, active, onSelect }) {
+function Sidebar({ active, onSelect, theme }) {
   const items = [
-    { id: 'calendar', label: '日曆對標', icon: CalendarDays },
-    { id: 'vitality', label: '活力圓環', icon: Activity },
-    { id: 'dial', label: '日節奏盤', icon: Gauge },
-    { id: 'orbital', label: '目標軌道', icon: Orbit },
+    { id: 'calendar', label: '日曆校正', icon: CalendarDays },
+    { id: 'ratio', label: '比例總覽', icon: Gauge },
   ];
   return (
     <nav className="sidebar" style={{ background: theme.surface, borderColor: theme.line }}>
@@ -270,144 +165,65 @@ function Sidebar({ theme, active, onSelect }) {
   );
 }
 
-function DesignCanvas({ theme, density, view, zoom, onFocus }) {
-  const boards = [
-    { id: 'calendar', label: 'Google 日曆對標' },
-    { id: 'vitality', label: '活力圓環' },
-    { id: 'dial', label: '24 小時節奏盤' },
-    { id: 'orbital', label: '目標軌道' },
-  ];
-  const shown = view === 'all' ? boards : boards.filter((b) => b.id === view);
-  return (
-    <section className="canvas">
-      <div className="canvasGrid" style={{ transform: `scale(${zoom / 100})` }}>
-        {shown.map((board) => (
-          <article className="artboardFrame" key={board.id}>
-            <div className="frameHeader">
-              <span>{board.label}</span>
-              <button className="miniButton" title="放大檢視" onClick={() => onFocus(board.id)}>
-                <Maximize2 size={14} />
-              </button>
-            </div>
-            <Artboard kind={board.id} theme={theme} density={density} />
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
+function CalendarBoard({ theme }) {
+  const [raw, setRaw] = useState(SAMPLE_CALENDAR_TEXT);
+  const [records, setRecords] = useDailyRecords();
+  const events = useMemo(() => parseCalendarText(raw), [raw]);
+  const analysis = useMemo(() => analyzeCalendar(events, records), [events, records]);
 
-function Artboard({ kind, theme, density, expanded = false }) {
-  const Component = kind === 'calendar' ? CalendarBoard : kind === 'dial' ? DialBoard : kind === 'orbital' ? OrbitalBoard : VitalityBoard;
   return (
-    <div className={`${expanded ? 'artboard expanded' : 'artboard'} ${kind === 'calendar' ? 'calendarArtboard' : ''}`} style={{ background: theme.page, color: theme.ink }}>
-      <Component theme={theme} density={density} />
-    </div>
-  );
-}
-
-function VitalityBoard({ theme, density }) {
-  const compact = density === 'compact';
-  const rings = [
-    { label: '深度', value: 4.8, goal: 5, color: theme.accent },
-    { label: '專注', value: 7.2, goal: 8, color: theme.focus },
-    { label: '對標', value: 78, goal: 100, color: theme.align },
-  ];
-  return (
-    <div className="boardLayout">
-      <BoardHeader kicker="今天 / 13:42" title="活力圓環" theme={theme} />
-      <section className="vitalityHero">
-        <div className="rings">
-          {rings.map((ring, index) => (
-            <Ring key={ring.label} size={compact ? 170 - index * 28 : 210 - index * 34} stroke={16} progress={ring.value / ring.goal} color={ring.color} />
-          ))}
-          <div className="ringCenter">
-            <strong>7.2h</strong>
-            <span>受保護專注</span>
+    <div className="boardLayout trackingBoard">
+      <BoardHeader kicker="Google Calendar / 手動校正" title="日曆對標與每日追蹤" theme={theme} />
+      <section className="calendarGrid">
+        <div className="calendarSummary" style={{ background: theme.surface, borderColor: theme.line }}>
+          <div className="scoreDial" style={{ borderColor: theme.line }}>
+            <strong>{analysis.score}</strong>
+            <span>準度分</span>
+          </div>
+          <div className="summaryCopy">
+            <span>今日判讀</span>
+            <h2>{analysis.headline}</h2>
+            <p>{analysis.note}</p>
           </div>
         </div>
-        <MetricStack theme={theme} />
-      </section>
-      <section className="cardGrid">
-        <DataCard icon={Timer} label="番茄鐘" value="12 / 14" theme={theme} />
-        <DataCard icon={Zap} label="能量" value="78%" theme={theme} />
-        <DataCard icon={BarChart3} label="打斷" value="9" theme={theme} />
-      </section>
-      <Timeline theme={theme} />
-    </div>
-  );
-}
-
-function DialBoard({ theme }) {
-  const [hover, setHover] = useState(null);
-  return (
-    <div className="boardLayout">
-      <BoardHeader kicker="24 小時地圖" title="日節奏盤" theme={theme} />
-      <section className="dialWrap">
-        <svg className="dialSvg" viewBox="0 0 420 420" role="img" aria-label="Twenty four hour focus dial">
-          <circle cx="210" cy="210" r="174" fill="none" stroke={theme.line} strokeWidth="36" />
-          {HOURS.map((cat, hour) => (
-            <path
-              key={hour}
-              d={hourArc(hour, 1, 190, 154)}
-              fill={catColor(cat, theme)}
-              opacity={hover === null || hover === hour ? 1 : .35}
-              onMouseEnter={() => setHover(hour)}
-              onMouseLeave={() => setHover(null)}
-            />
-          ))}
-          {Array.from({ length: 24 }).map((_, h) => {
-            const a = (h / 24) * Math.PI * 2 - Math.PI / 2;
-            const x1 = 210 + 136 * Math.cos(a);
-            const y1 = 210 + 136 * Math.sin(a);
-            const x2 = 210 + 146 * Math.cos(a);
-            const y2 = 210 + 146 * Math.sin(a);
-            return <line key={h} x1={x1} y1={y1} x2={x2} y2={y2} stroke={theme.line} strokeWidth="2" />;
-          })}
-          <circle cx="210" cy="210" r="104" fill={theme.surface} stroke={theme.line} />
-          <text x="210" y="196" textAnchor="middle" className="dialTime" fill={theme.ink}>13:42</text>
-          <text x="210" y="224" textAnchor="middle" className="dialLabel" fill={theme.inkSoft}>
-            {hover === null ? '目前節奏' : `${String(hover).padStart(2, '0')}:00 ${categoryLabel(HOURS[hover])}`}
-          </text>
-        </svg>
-        <MetricStack theme={theme} compact />
-      </section>
-      <Timeline theme={theme} />
-    </div>
-  );
-}
-
-function OrbitalBoard({ theme }) {
-  const [selected, setSelected] = useState('Quarter');
-  const activeGoal = GOALS.find((g) => g.label === selected) || GOALS[1];
-  return (
-    <div className="boardLayout">
-      <BoardHeader kicker="目標週期" title="目標軌道" theme={theme} />
-      <section className="orbitalGrid">
-        <svg className="orbitSvg" viewBox="0 0 460 460" role="img" aria-label="Concentric goal progress orbits">
-          {GOALS.map((goal, index) => {
-            const r = 196 - index * 42;
-            const color = [theme.align, theme.accent, theme.focus, theme.gold][index];
-            return (
-              <g key={goal.label} onClick={() => setSelected(goal.label)} className="orbitGroup">
-                <circle cx="230" cy="230" r={r} fill="none" stroke={theme.line} strokeWidth="12" />
-                <path d={circleArc(230, 230, r, goal.progress / 100)} fill="none" stroke={color} strokeWidth="12" strokeLinecap="round" />
-                <circle cx={230} cy={230 - r} r={selected === goal.label ? 8 : 5} fill={color} />
-              </g>
-            );
-          })}
-          <circle cx="230" cy="230" r="54" fill={theme.surface} stroke={theme.line} />
-          <text x="230" y="223" textAnchor="middle" className="orbitPct" fill={theme.ink}>{activeGoal.progress}%</text>
-          <text x="230" y="248" textAnchor="middle" className="dialLabel" fill={theme.inkSoft}>{activeGoal.label}</text>
-        </svg>
-        <div className="goalPanel" style={{ background: theme.surface, borderColor: theme.line }}>
-          <span>目前週期</span>
-          <strong>{goalLabel(activeGoal.label)}</strong>
-          <p>{activeGoal.detail}</p>
-          <div className="progressLine"><i style={{ width: `${activeGoal.progress}%`, background: theme.accent }} /></div>
+        <div className="calendarInput" style={{ background: theme.surface, borderColor: theme.line }}>
+          <label>
+            <span>貼上日曆事件，一行一筆：標題,開始,結束</span>
+            <textarea value={raw} onChange={(event) => setRaw(event.target.value)} spellCheck="false" />
+          </label>
         </div>
       </section>
-      <Heatmap theme={theme} />
+      <SourceQuality theme={theme} />
+      <RatioRows theme={theme} rows={analysis.rows} />
+      <section className="insightList" style={{ background: theme.surface, borderColor: theme.line }}>
+        {analysis.insights.map((item) => <p key={item}>{item}</p>)}
+      </section>
+      <WeeklyPlanPanel theme={theme} onAddCalendarBlock={(lines) => setRaw((prev) => `${prev.trim()}\n${lines}`.trim())} />
+      <DailyTracker theme={theme} records={records} setRecords={setRecords} analysis={analysis} />
+    </div>
+  );
+}
+
+function RatioBoard({ theme }) {
+  const [records] = useDailyRecords();
+  const totals = summarizeRecords(records);
+  const rows = ratioRowsFromTotals(totals);
+  return (
+    <div className="boardLayout trackingBoard">
+      <BoardHeader kicker="近 7 筆手動紀錄" title="時間比例總覽" theme={theme} />
+      <section className="ratioHero" style={{ background: theme.surface, borderColor: theme.line }}>
+        <div>
+          <span>深度 + 技能</span>
+          <strong>{(totals.deep + totals.growth).toFixed(1)}h</strong>
+          <p>這是最直接對標長期能力的時間。每天不需要完美，但要讓它連續出現。</p>
+        </div>
+        <StackedBar rows={rows} />
+      </section>
+      <RatioRows theme={theme} rows={rows} />
+      <section className="measurementPlan" style={{ background: theme.surface, borderColor: theme.line }}>
+        <h2>下一步測量設計</h2>
+        <p>先用 Google 日曆抓計畫，再用每日追蹤校正實際發生。之後可以接 Toggl / Apple Health / Screen Time，把準度從「估計」推到「半自動」。</p>
+      </section>
     </div>
   );
 }
@@ -419,82 +235,204 @@ function BoardHeader({ kicker, title, theme }) {
         <span style={{ color: theme.inkMute }}>{kicker}</span>
         <h1>{title}</h1>
       </div>
-      <CircleDot color={theme.accent} size={28} />
+      <CheckCircle2 color={theme.accent} size={28} />
     </header>
   );
 }
 
-function MetricStack({ theme, compact = false }) {
+function SourceQuality({ theme }) {
+  const sources = [
+    { label: 'Google 日曆', value: '計畫/事件', confidence: 72, color: theme.align },
+    { label: '每日校正', value: '實際時數', confidence: 92, color: theme.accent },
+    { label: '電腦/手機活動', value: '待串接', confidence: 0, color: theme.inkMute },
+    { label: '健康資料', value: '待串接', confidence: 0, color: theme.focus },
+  ];
   return (
-    <div className={compact ? 'metricStack compact' : 'metricStack'}>
-      {[
-        ['深度工作', '4.8h', theme.accent],
-        ['專注總量', '7.2h', theme.focus],
-        ['目標貼合', '78%', theme.align],
-      ].map(([label, value, color]) => (
-        <div className="metricRow" key={label} style={{ background: theme.surface, borderColor: theme.line }}>
-          <i style={{ background: color }} />
-          <span>{label}</span>
-          <strong>{value}</strong>
+    <section className="sourceGrid">
+      {sources.map((source) => (
+        <div key={source.label} className="sourceCard" style={{ background: theme.surface, borderColor: theme.line }}>
+          <span>{source.label}</span>
+          <strong>{source.value}</strong>
+          <div className="progressLine"><i style={{ width: `${source.confidence}%`, background: source.color }} /></div>
         </div>
       ))}
-    </div>
+    </section>
   );
 }
 
-function DataCard({ icon: Icon, label, value, theme }) {
+function RatioRows({ theme, rows }) {
   return (
-    <div className="dataCard" style={{ background: theme.surface, borderColor: theme.line }}>
-      <Icon size={18} color={theme.accent} />
+    <section className="targetRows">
+      {rows.map((row) => (
+        <div className="targetRow" key={row.label} style={{ background: theme.surface, borderColor: theme.line }}>
+          <Target size={17} color={row.color} />
+          <span>{row.label}</span>
+          <strong>{row.hours.toFixed(1)}h</strong>
+          <small>{row.percent.toFixed(0)}%</small>
+          <div className="progressLine"><i style={{ width: `${Math.min(100, row.percent)}%`, background: row.color }} /></div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function WeeklyPlanPanel({ theme, onAddCalendarBlock }) {
+  const [plan, setPlan] = useWeeklyPlan();
+  const weekStart = getNextMonday();
+
+  function updatePlanItem(id, key, value) {
+    setPlan((prev) => prev.map((item) => item.id === id ? { ...item, [key]: value } : item));
+  }
+
+  function addPlanItem() {
+    setPlan((prev) => [
+      ...prev,
+      { id: `plan-${Date.now()}`, dayOffset: 0, start: '20:00', end: '21:00', title: '新的專注時段' },
+    ]);
+  }
+
+  function removePlanItem(id) {
+    setPlan((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  function pushToCalendarText() {
+    const lines = plan.map((item) => {
+      const start = dateFromWeekPlan(weekStart, item.dayOffset, item.start);
+      const end = dateFromWeekPlan(weekStart, item.dayOffset, item.end);
+      return `${item.title},${formatDateTime(start)},${formatDateTime(end)}`;
+    }).join('\n');
+    onAddCalendarBlock(lines);
+  }
+
+  function exportICS() {
+    const ics = buildPlanICS(plan, weekStart);
+    downloadTextFile('time-panel-week-plan.ics', ics, 'text/calendar;charset=utf-8');
+  }
+
+  return (
+    <section className="weeklyPlanPanel" style={{ background: theme.surface, borderColor: theme.line }}>
+      <div className="trackerHead">
+        <div>
+          <span>下週設計</span>
+          <h2>先保護最重要的時間</h2>
+        </div>
+        <div className="weeklyPlanActions">
+          <button className="miniTextButton" onClick={addPlanItem}>新增</button>
+          <button className="miniTextButton" onClick={pushToCalendarText}>套用到面板</button>
+          <button className="saveButton" onClick={exportICS}>
+            <Save size={16} />
+            匯出 .ics
+          </button>
+        </div>
+      </div>
+      <div className="weeklyPlanTable">
+        {plan.map((item) => (
+          <div className="weeklyPlanRow" key={item.id}>
+            <select value={item.dayOffset} onChange={(event) => updatePlanItem(item.id, 'dayOffset', Number(event.target.value))}>
+              {['一', '二', '三', '四', '五', '六', '日'].map((day, index) => <option key={day} value={index}>週{day}</option>)}
+            </select>
+            <input type="time" value={item.start} onChange={(event) => updatePlanItem(item.id, 'start', event.target.value)} />
+            <input type="time" value={item.end} onChange={(event) => updatePlanItem(item.id, 'end', event.target.value)} />
+            <input value={item.title} onChange={(event) => updatePlanItem(item.id, 'title', event.target.value)} />
+            <button className="miniTextButton" onClick={() => removePlanItem(item.id)}>刪除</button>
+          </div>
+        ))}
+      </div>
+      <p className="syncHint">匯出的 .ics 可匯入 Google Calendar。之後若接 OAuth，就能改成一鍵寫入。</p>
+    </section>
+  );
+}
+
+function DailyTracker({ theme, records, setRecords, analysis }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const existing = records.find((record) => record.date === today);
+  const defaults = existing || {
+    date: today,
+    deep: valueFor(analysis.rows, '深度創作'),
+    growth: valueFor(analysis.rows, '學習技能'),
+    body: valueFor(analysis.rows, '身體維護'),
+    work: valueFor(analysis.rows, '工作'),
+    rest: valueFor(analysis.rows, '休息睡眠'),
+    life: valueFor(analysis.rows, '生活社交'),
+    note: '',
+  };
+  const [draft, setDraft] = useState(defaults);
+  const lastSeven = latestRecords(records, 7);
+  const weeklyTotal = lastSeven.reduce((sum, record) => sum + Number(record.deep || 0) + Number(record.growth || 0), 0);
+
+  function update(key, value) {
+    setDraft((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function save() {
+    const cleaned = normalizeRecord(draft);
+    setRecords((prev) => {
+      const withoutSameDate = prev.filter((record) => record.date !== cleaned.date);
+      return [...withoutSameDate, cleaned].sort((a, b) => a.date.localeCompare(b.date));
+    });
+  }
+
+  return (
+    <section className="dailyTracker" style={{ background: theme.surface, borderColor: theme.line }}>
+      <div className="trackerHead">
+        <div>
+          <span>每日校正</span>
+          <h2>今天實際發生了什麼</h2>
+        </div>
+        <button className="saveButton" onClick={save}>
+          <Save size={16} />
+          儲存今天
+        </button>
+      </div>
+      <div className="trackerForm">
+        <TimeInput label="深度創作" value={draft.deep} onChange={(v) => update('deep', v)} />
+        <TimeInput label="學習技能" value={draft.growth} onChange={(v) => update('growth', v)} />
+        <TimeInput label="身體維護" value={draft.body} onChange={(v) => update('body', v)} />
+        <TimeInput label="工作" value={draft.work} onChange={(v) => update('work', v)} />
+        <TimeInput label="休息睡眠" value={draft.rest} onChange={(v) => update('rest', v)} />
+        <TimeInput label="生活社交" value={draft.life} onChange={(v) => update('life', v)} />
+      </div>
+      <textarea className="noteInput" value={draft.note} onChange={(event) => update('note', event.target.value)} placeholder="今天的能量、卡點、明天要保護的時間..." />
+      <div className="recordStrip">
+        <strong>近 7 筆深度/技能：{weeklyTotal.toFixed(1)}h</strong>
+        <div>
+          {lastSeven.length ? lastSeven.map((record) => (
+            <span key={record.date}>{record.date.slice(5)} · {(Number(record.deep || 0) + Number(record.growth || 0)).toFixed(1)}h</span>
+          )) : <span>儲存後會出現每日紀錄</span>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TimeInput({ label, value, onChange }) {
+  return (
+    <label className="timeInput">
       <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
+      <input type="number" min="0" step="0.25" value={value} onChange={(event) => onChange(event.target.value)} />
+    </label>
   );
 }
 
-function Timeline({ theme }) {
-  return (
-    <section className="timeline" style={{ background: theme.surface, borderColor: theme.line }}>
-      {HOURS.map((cat, hour) => (
-        <i key={hour} title={`${hour}:00 ${cat}`} style={{ background: catColor(cat, theme) }} />
-      ))}
-    </section>
-  );
-}
-
-function Heatmap({ theme }) {
-  const cells = Array.from({ length: 84 }, (_, i) => ((i * 7 + i % 5) % 8));
-  return (
-    <section className="heatmap" style={{ background: theme.surface, borderColor: theme.line }}>
-      {cells.map((v, i) => (
-        <i key={i} style={{ background: v ? theme.accent : theme.line, opacity: v ? .25 + v / 10 : 1 }} />
-      ))}
-    </section>
-  );
-}
-
-function TweaksPanel({ theme, controls }) {
+function TweaksPanel({ theme, palette, setPalette, view, setView, zoom, setZoom }) {
   return (
     <aside className="tweaks" style={{ background: theme.surface, borderColor: theme.line }}>
       <div className="tweakHead">
         <strong>面板調整</strong>
-        <Palette size={17} color={theme.accent} />
+        <Zap size={17} color={theme.accent} />
       </div>
       <label className="field">
         <span>畫面</span>
-        <select value={controls.view} onChange={(e) => controls.setView(e.target.value)}>
-          <option value="calendar">Google 日曆對標</option>
-          <option value="vitality">活力圓環</option>
-          <option value="dial">日節奏盤</option>
-          <option value="orbital">目標軌道</option>
-          <option value="all">全部畫面</option>
+        <select value={view} onChange={(event) => setView(event.target.value)}>
+          <option value="calendar">日曆校正</option>
+          <option value="ratio">比例總覽</option>
         </select>
       </label>
       <div className="field">
         <span>色票</span>
         <div className="paletteGrid">
           {Object.entries(PALETTES).map(([key, p]) => (
-            <button key={key} className={controls.palette === key ? 'swatch active' : 'swatch'} title={p.name} onClick={() => controls.setPalette(key)}>
+            <button key={key} className={palette === key ? 'swatch active' : 'swatch'} title={p.name} onClick={() => setPalette(key)}>
               <i style={{ background: p.accent }} />
               <i style={{ background: p.focus }} />
               <i style={{ background: p.align }} />
@@ -502,20 +440,9 @@ function TweaksPanel({ theme, controls }) {
           ))}
         </div>
       </div>
-      <div className="field">
-        <span>密度</span>
-        <Segmented
-          value={controls.density}
-          onChange={controls.setDensity}
-          options={[
-            { value: 'compact', label: '緊湊' },
-            { value: 'regular', label: '標準' },
-          ]}
-        />
-      </div>
       <label className="field">
-        <span>畫布縮放 {controls.zoom}%</span>
-        <input type="range" min="58" max="112" value={controls.zoom} onChange={(e) => controls.setZoom(Number(e.target.value))} />
+        <span>畫布縮放 {zoom}%</span>
+        <input type="range" min="58" max="112" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} />
       </label>
     </aside>
   );
@@ -537,343 +464,28 @@ function Segmented({ value, onChange, options }) {
   );
 }
 
-function Ring({ size, stroke, progress, color }) {
-  const r = (size - stroke) / 2;
-  const c = Math.PI * 2 * r;
+function StackedBar({ rows }) {
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="ringLayer">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(120,110,90,.13)" strokeWidth={stroke} />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        fill="none"
-        stroke={color}
-        strokeLinecap="round"
-        strokeWidth={stroke}
-        strokeDasharray={`${c * Math.min(progress, 1)} ${c}`}
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-      />
-    </svg>
-  );
-}
-
-function catColor(cat, theme) {
-  return {
-    deep: theme.accent,
-    learn: theme.align,
-    create: theme.gold,
-    move: theme.focus,
-    admin: 'rgba(120,120,120,.36)',
-    plan: '#7f8f68',
-    review: '#9f7fa7',
-    break: 'rgba(150,120,80,.32)',
-    sleep: 'rgba(80,88,96,.25)',
-  }[cat] || theme.line;
-}
-
-function parseICS(text) {
-  const normalized = text.replace(/\r\n/g, '\n').replace(/\n[ \t]/g, '');
-  const lines = normalized.split('\n');
-  const results = [];
-  let current = null;
-  for (const line of lines) {
-    if (line === 'BEGIN:VEVENT') { current = {}; continue; }
-    if (line === 'END:VEVENT') {
-      if (current?.dtstart && current?.dtend && !/VALUE=DATE/.test(current.dtstart)) {
-        const fmt = (s) => {
-          const d = s.replace(/Z$/, '');
-          return `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)} ${d.slice(9,11)}:${d.slice(11,13)}`;
-        };
-        results.push(`${current.title || '未命名'},${fmt(current.dtstart)},${fmt(current.dtend)}`);
-      }
-      current = null;
-      continue;
-    }
-    if (!current) continue;
-    if (/^SUMMARY/i.test(line)) current.title = line.replace(/^SUMMARY[^:]*:/i, '').trim();
-    if (/^DTSTART/i.test(line)) current.dtstart = line.replace(/^DTSTART[^:]*:/i, '').trim();
-    if (/^DTEND/i.test(line)) current.dtend = line.replace(/^DTEND[^:]*:/i, '').trim();
-  }
-  return results.join('\n');
-}
-
-function CalendarBoard({ theme }) {
-  const [raw, setRaw] = useState(SAMPLE_CALENDAR_TEXT);
-  const [records, setRecords] = useDailyRecords();
-  const [targets, setTargets] = useTargetRatios();
-  const [adjustments, setAdjustments] = useScenarioAdjustments();
-  const [weeklyHistory, setWeeklyHistory] = useWeeklyHistory();
-  const [weeklyPlan, setWeeklyPlan] = useWeeklyPlan();
-  const [icsUrl, setIcsUrl] = useState(() => localStorage.getItem(GCAL_STORAGE_KEY) || '');
-  const [gcalLoading, setGcalLoading] = useState(false);
-  const [gcalError, setGcalError] = useState('');
-  const events = useMemo(() => parseCalendarText(raw), [raw]);
-  const analysis = useMemo(() => analyzeCalendar(events, targets, adjustments, theme), [events, targets, adjustments, theme]);
-
-  useEffect(() => {
-    const saved = localStorage.getItem(GCAL_STORAGE_KEY);
-    if (saved) fetchICS(saved);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function handleICSFile(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const parsed = parseICS(e.target.result);
-      if (parsed) setRaw(parsed);
-    };
-    reader.readAsText(file, 'UTF-8');
-  }
-
-  async function fetchICS(url) {
-    if (!url) return;
-    setGcalLoading(true);
-    setGcalError('');
-    try {
-      const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-      const res = await fetch(proxy);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const parsed = parseICS(data.contents || '');
-      if (parsed) {
-        setRaw(parsed);
-        localStorage.setItem(GCAL_STORAGE_KEY, url);
-      } else {
-        setGcalError('無法解析 ICS，請確認連結正確');
-      }
-    } catch {
-      setGcalError('連線失敗，可改用上傳 .ics 檔案');
-    } finally {
-      setGcalLoading(false);
-    }
-  }
-
-  function saveAndFetch() {
-    localStorage.setItem(GCAL_STORAGE_KEY, icsUrl);
-    fetchICS(icsUrl);
-  }
-
-  function saveWeeklySnapshot() {
-    const snapshot = makeWeeklySnapshot(analysis);
-    setWeeklyHistory((prev) => {
-      const withoutSameWeek = prev.filter((item) => item.weekKey !== snapshot.weekKey);
-      return [snapshot, ...withoutSameWeek].sort((a, b) => b.weekKey.localeCompare(a.weekKey)).slice(0, 36);
-    });
-  }
-
-  return (
-    <div className="boardLayout">
-      <BoardHeader kicker="Google Calendar / 本週對標" title="日曆對標" theme={theme} />
-      <div className="gcalBar" style={{ background: theme.surface, borderColor: theme.line }}>
-        <label className="gcalFileBtn">
-          <input type="file" accept=".ics" onChange={handleICSFile} style={{ display: 'none' }} />
-          上傳 .ics 檔
-        </label>
-        <span className="gcalSep">或</span>
-        <input
-          className="gcalUrlInput"
-          type="url"
-          placeholder="貼上 Google 日曆私人 iCal 連結"
-          value={icsUrl}
-          onChange={(e) => setIcsUrl(e.target.value)}
-        />
-        <button className="gcalButton" onClick={saveAndFetch} disabled={gcalLoading || !icsUrl}>
-          {gcalLoading ? '載入…' : '同步'}
-        </button>
-        {gcalError && <span className="gcalError">{gcalError}</span>}
-        {!gcalError && icsUrl && !gcalLoading && <span className="gcalStatus">● 已儲存</span>}
-      </div>
-      <section className="calendarGrid">
-        <div className="calendarSummary" style={{ background: theme.surface, borderColor: theme.line }}>
-          <div className="scoreDial" style={{ borderColor: theme.line }}>
-            <strong>{analysis.score}</strong>
-            <span>對標分</span>
-          </div>
-          <div className="summaryCopy">
-            <span>本週重點</span>
-            <h2>{analysis.headline}</h2>
-            <p>{analysis.note}</p>
-            <div className="summaryStats">
-              <b>下班總額 {analysis.offWorkTotalHours.toFixed(1)}h</b>
-              <b>週末假日 {analysis.weekendHours.toFixed(1)}h</b>
-              <b>剩餘可排 {analysis.openOffWorkHours.toFixed(1)}h</b>
-            </div>
-          </div>
-        </div>
-        <div className="calendarInput" style={{ background: theme.surface, borderColor: theme.line }}>
-          <label>
-            <span>行程資料（標題,開始,結束）</span>
-            <textarea value={raw} onChange={(event) => setRaw(event.target.value)} spellCheck="false" />
-          </label>
-        </div>
-      </section>
-      <section className="targetRows">
-        {analysis.rows.map((row) => (
-          <div className="targetRow" key={row.label} style={{ background: theme.surface, borderColor: theme.line }}>
-            <Target size={17} color={row.color} />
-            <span>{row.label}</span>
-            <strong>{row.hours.toFixed(1)}h</strong>
-            <small>總 {row.totalPercent.toFixed(0)}% · 扣工 {row.actualPercent.toFixed(0)}% / 目標 {row.target}%</small>
-            <div className="progressLine"><i style={{ width: `${Math.min(100, row.actualPercent)}%`, background: row.color }} /></div>
-            <label className="adjustInput">
-              <span>情境</span>
-              <input
-                type="number"
-                step="0.5"
-                value={adjustments[row.key] || 0}
-                onChange={(event) => setAdjustments((prev) => ({ ...prev, [row.key]: Number(event.target.value || 0) }))}
-              />
-            </label>
-          </div>
-        ))}
-      </section>
-      <section className="alignmentGrid">
-        <div className="directionPanel" style={{ background: theme.surface, borderColor: theme.line }}>
-          <div className="trackerHead">
-            <div>
-              <span>方向校準</span>
-              <h2>可控總額 {analysis.controllableHours.toFixed(1)}h</h2>
-            </div>
-            <Compass size={18} color={theme.accent} />
-          </div>
-          <p>{analysis.directionNote}</p>
-          <div className="scoreBars">
-            {analysis.scoreParts.map((part) => (
-              <label key={part.label}>
-                <span>{part.label}</span>
-                <strong>{part.value}%</strong>
-                <div className="progressLine"><i style={{ width: `${part.value}%`, background: part.color }} /></div>
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="ratioTuner" style={{ background: theme.surface, borderColor: theme.line }}>
-          <div className="trackerHead">
-            <div>
-              <span>目標比例</span>
-              <h2>下週可控時間配置</h2>
-            </div>
-            <button className="miniTextButton" onClick={() => setTargets(defaultTargets())}>重設</button>
-          </div>
-          {CATEGORY_DEFS.map((cat) => (
-            <label className="ratioSlider" key={cat.key}>
-              <span>{cat.label}</span>
-              <input
-                type="range"
-                min="0"
-                max="40"
-                value={targets[cat.key] || 0}
-                onChange={(event) => setTargets((prev) => ({ ...prev, [cat.key]: Number(event.target.value) }))}
-              />
-              <strong>{targets[cat.key] || 0}%</strong>
-            </label>
-          ))}
-        </div>
-      </section>
-      <section className="insightList" style={{ background: theme.surface, borderColor: theme.line }}>
-        {analysis.insights.map((item) => <p key={item}>{item}</p>)}
-      </section>
-      <HistoryPanel
-        theme={theme}
-        analysis={analysis}
-        history={weeklyHistory}
-        onSave={saveWeeklySnapshot}
-        onResetAdjustments={() => setAdjustments(defaultAdjustments())}
-      />
-      <section className="plannerList" style={{ background: theme.surface, borderColor: theme.line }}>
-        <div className="trackerHead">
-          <div>
-            <span>下週建議</span>
-            <h2>依比例缺口排程</h2>
-          </div>
-        </div>
-        {analysis.recommendations.map((item) => <p key={item}>{item}</p>)}
-      </section>
-      <WeeklyPlanPanel
-        theme={theme}
-        analysis={analysis}
-        plan={weeklyPlan}
-        setPlan={setWeeklyPlan}
-        onAddCalendarBlock={(line) => setRaw((prev) => `${prev.trim()}\n${line}`.trim())}
-      />
-      <PomodoroPanel theme={theme} onAddCalendarBlock={(line) => setRaw((prev) => `${prev.trim()}\n${line}`.trim())} />
-      <DailyTracker theme={theme} records={records} setRecords={setRecords} analysis={analysis} />
+    <div className="stackedBar">
+      {rows.map((row) => <i key={row.label} style={{ width: `${Math.max(4, row.percent)}%`, background: row.color }} title={`${row.label} ${row.percent.toFixed(0)}%`} />)}
     </div>
   );
 }
 
-function defaultTargets() {
-  return CATEGORY_DEFS.reduce((acc, cat) => ({ ...acc, [cat.key]: cat.target }), {});
-}
-
-function useTargetRatios() {
-  const [targets, setTargetsState] = useState(() => {
+function useDailyRecords() {
+  const [records, setRecords] = useState(() => {
     try {
-      return { ...defaultTargets(), ...JSON.parse(localStorage.getItem(TARGET_RATIO_KEY) || '{}') };
-    } catch {
-      return defaultTargets();
-    }
-  });
-  const setTargets = (next) => {
-    setTargetsState((prev) => {
-      const value = typeof next === 'function' ? next(prev) : next;
-      localStorage.setItem(TARGET_RATIO_KEY, JSON.stringify(value));
-      return value;
-    });
-  };
-  return [targets, setTargets];
-}
-
-function defaultAdjustments() {
-  return CATEGORY_DEFS.reduce((acc, cat) => ({ ...acc, [cat.key]: 0 }), {});
-}
-
-function useScenarioAdjustments() {
-  const [adjustments, setAdjustmentsState] = useState(() => {
-    try {
-      return { ...defaultAdjustments(), ...JSON.parse(localStorage.getItem(ADJUSTMENTS_KEY) || '{}') };
-    } catch {
-      return defaultAdjustments();
-    }
-  });
-  const setAdjustments = (next) => {
-    setAdjustmentsState((prev) => {
-      const value = typeof next === 'function' ? next(prev) : next;
-      localStorage.setItem(ADJUSTMENTS_KEY, JSON.stringify(value));
-      return value;
-    });
-  };
-  return [adjustments, setAdjustments];
-}
-
-function useWeeklyHistory() {
-  const [history, setHistoryState] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(WEEKLY_HISTORY_KEY) || '[]');
+      return JSON.parse(localStorage.getItem(TRACKING_KEY) || '[]');
     } catch {
       return [];
     }
   });
-  const setHistory = (next) => {
-    setHistoryState((prev) => {
-      const value = typeof next === 'function' ? next(prev) : next;
-      localStorage.setItem(WEEKLY_HISTORY_KEY, JSON.stringify(value));
-      return value;
-    });
+  const saveRecords = (next) => {
+    const value = typeof next === 'function' ? next(records) : next;
+    setRecords(value);
+    localStorage.setItem(TRACKING_KEY, JSON.stringify(value));
   };
-  return [history, setHistory];
-}
-
-function defaultWeeklyPlan() {
-  return [
-    { id: 'ai-mon', dayOffset: 0, start: '07:30', end: '08:30', category: 'growth', title: 'AI 專注時段' },
-    { id: 'invest-wed', dayOffset: 2, start: '21:30', end: '22:15', category: 'investing', title: '美股投資研究' },
-    { id: 'guitar-fri', dayOffset: 4, start: '20:00', end: '21:30', category: 'music', title: '練吉他錄音創作' },
-    { id: 'photo-sat', dayOffset: 5, start: '15:30', end: '17:30', category: 'photo', title: '街拍抓拍' },
-  ];
+  return [records, saveRecords];
 }
 
 function useWeeklyPlan() {
@@ -895,327 +507,119 @@ function useWeeklyPlan() {
   return [plan, setPlan];
 }
 
-function WeeklyPlanPanel({ theme, analysis, plan, setPlan, onAddCalendarBlock }) {
-  const weekStart = parseDateInput(analysis.weekStartISO);
-
-  function updatePlanItem(id, key, value) {
-    setPlan((prev) => prev.map((item) => item.id === id ? { ...item, [key]: value } : item));
-  }
-
-  function addPlanItem() {
-    setPlan((prev) => [
-      ...prev,
-      {
-        id: `plan-${Date.now()}`,
-        dayOffset: 0,
-        start: '21:30',
-        end: '22:15',
-        category: 'investing',
-        title: '美股投資研究',
-      },
-    ]);
-  }
-
-  function removePlanItem(id) {
-    setPlan((prev) => prev.filter((item) => item.id !== id));
-  }
-
-  function pushToCalendarText() {
-    const lines = plan.map((item) => planItemToCsvLine(item, weekStart)).filter(Boolean);
-    if (lines.length) onAddCalendarBlock(lines.join('\n'));
-  }
-
-  function exportICS() {
-    const ics = buildPlanICS(plan, weekStart);
-    downloadTextFile(`time-plan-${analysis.monthKey}.ics`, ics, 'text/calendar;charset=utf-8');
-  }
-
-  return (
-    <section className="weeklyPlanPanel" style={{ background: theme.surface, borderColor: theme.line }}>
-      <div className="trackerHead">
-        <div>
-          <span>週表</span>
-          <h2>{analysis.weekKey}</h2>
-        </div>
-        <div className="weeklyPlanActions">
-          <button className="miniTextButton" onClick={addPlanItem}>新增</button>
-          <button className="miniTextButton" onClick={pushToCalendarText}>套用到面板</button>
-          <button className="saveButton" onClick={exportICS}>
-            <Save size={16} />
-            匯出 .ics
-          </button>
-        </div>
-      </div>
-      <div className="weeklyPlanTable">
-        {plan.map((item) => (
-          <div className="weeklyPlanRow" key={item.id}>
-            <select value={item.dayOffset} onChange={(event) => updatePlanItem(item.id, 'dayOffset', Number(event.target.value))}>
-              {['一', '二', '三', '四', '五', '六', '日'].map((day, index) => <option key={day} value={index}>週{day}</option>)}
-            </select>
-            <input type="time" value={item.start} onChange={(event) => updatePlanItem(item.id, 'start', event.target.value)} />
-            <input type="time" value={item.end} onChange={(event) => updatePlanItem(item.id, 'end', event.target.value)} />
-            <select value={item.category} onChange={(event) => updatePlanItem(item.id, 'category', event.target.value)}>
-              {CATEGORY_DEFS.map((cat) => <option key={cat.key} value={cat.key}>{cat.label}</option>)}
-            </select>
-            <input value={item.title} onChange={(event) => updatePlanItem(item.id, 'title', event.target.value)} />
-            <button className="miniTextButton" onClick={() => removePlanItem(item.id)}>刪除</button>
-          </div>
-        ))}
-      </div>
-      <p className="syncHint">目前可匯出 Google Calendar 可匯入的 .ics。若要一鍵直接寫入 Google 日曆，需要另外接 Google OAuth client ID。</p>
-    </section>
-  );
+function defaultWeeklyPlan() {
+  return [
+    { id: 'ai-mon', dayOffset: 0, start: '07:30', end: '08:30', title: 'AI 專注時段' },
+    { id: 'dance-tue', dayOffset: 1, start: '19:30', end: '20:30', title: '舞蹈訓練' },
+    { id: 'guitar-fri', dayOffset: 4, start: '20:00', end: '21:30', title: '練吉他錄音' },
+    { id: 'review-sun', dayOffset: 6, start: '21:30', end: '22:00', title: '週回顧與下週排程' },
+  ];
 }
 
-function makeWeeklySnapshot(analysis) {
+function parseCalendarText(raw) {
+  return raw.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+    const [title = '未命名', start = '', end = ''] = line.split(',').map((part) => part.trim());
+    const startDate = new Date(start.replace(' ', 'T'));
+    const endDate = new Date(end.replace(' ', 'T'));
+    const hours = Number.isFinite(endDate - startDate) ? Math.max(0, (endDate - startDate) / 36e5) : 0;
+    return { title, hours, category: inferCategory(title) };
+  }).filter((event) => event.hours > 0);
+}
+
+function inferCategory(title) {
+  const text = title.toLowerCase();
+  if (/上班|工作|meeting|會議|收款|補貨/.test(text)) return 'work';
+  if (/flow|ai|文案|拍照|整理|創作|輸出/.test(text)) return 'deep';
+  if (/吉他|看書|課|學|練舞|bachata|lv/.test(text)) return 'growth';
+  if (/健身|跑步|腳|運動/.test(text)) return 'body';
+  if (/睡|休息/.test(text)) return 'rest';
+  return 'life';
+}
+
+function analyzeCalendar(events, records) {
+  const totals = events.reduce((acc, event) => {
+    acc[event.category] = (acc[event.category] || 0) + event.hours;
+    return acc;
+  }, {});
+  const totalHours = Object.values(totals).reduce((sum, value) => sum + value, 0) || 1;
+  const focus = (totals.deep || 0) + (totals.growth || 0);
+  const correctedDays = latestRecords(records, 7).length;
+  const score = Math.round(Math.min(100, 52 + focus * 7 + (totals.body || 0) * 5 + correctedDays * 3 - Math.max(0, (totals.work || 0) - 9) * 2));
+  const rows = ratioRowsFromTotals(totals, totalHours);
   return {
-    weekKey: analysis.weekKey,
-    monthKey: analysis.monthKey,
-    savedAt: new Date().toISOString(),
-    score: analysis.score,
-    controllableHours: Number(analysis.controllableHours.toFixed(1)),
-    openOffWorkHours: Number(analysis.openOffWorkHours.toFixed(1)),
-    rows: analysis.rows.map((row) => ({
-      key: row.key,
-      label: row.label,
-      hours: Number(row.hours.toFixed(1)),
-      percent: Number(row.actualPercent.toFixed(1)),
-      target: row.target,
-    })),
+    score,
+    rows,
+    headline: focus >= 3 ? '今天有對到長期能力' : '今天還缺一塊深度輸出',
+    note: `已解析 ${events.length} 筆行程。準度會隨每日校正增加，目前近 7 筆已有 ${correctedDays} 筆手動紀錄。`,
+    insights: [
+      `深度創作 + 學習技能合計 ${focus.toFixed(1)} 小時，是最直接對標長期能力的區塊。`,
+      (totals.body || 0) >= 1 ? '身體維護有出現，這會讓晚間輸出比較穩。' : '今天沒有身體維護紀錄，可以補一個 20 到 30 分鐘低門檻區塊。',
+      (totals.work || 0) > 8 ? '工作占用偏高，晚間最好只保護一件最重要的輸出。' : '工作占用尚可，可以安排一段完整創作時間。',
+    ],
   };
 }
 
-function HistoryPanel({ theme, analysis, history, onSave, onResetAdjustments }) {
-  const currentMonth = analysis.monthKey;
-  const monthRows = history.filter((item) => item.monthKey === currentMonth);
-  const monthTotals = CATEGORY_DEFS.map((cat) => ({
-    ...cat,
-    hours: monthRows.reduce((sum, item) => sum + Number(item.rows.find((row) => row.key === cat.key)?.hours || 0), 0),
-  })).filter((item) => item.hours > 0).sort((a, b) => b.hours - a.hours).slice(0, 4);
-
-  return (
-    <section className="historyPanel" style={{ background: theme.surface, borderColor: theme.line }}>
-      <div className="trackerHead">
-        <div>
-          <span>週月回看</span>
-          <h2>{analysis.weekKey}</h2>
-        </div>
-        <div className="historyActions">
-          <button className="miniTextButton" onClick={onResetAdjustments}>清空情境</button>
-          <button className="saveButton" onClick={onSave}>
-            <Save size={16} />
-            儲存本週
-          </button>
-        </div>
-      </div>
-      <div className="historyGrid">
-        <div className="historyColumn">
-          <strong>最近週紀錄</strong>
-          {history.slice(0, 5).map((item) => (
-            <div className="historyRow" key={item.weekKey}>
-              <span>{item.weekKey}</span>
-              <b>{item.score}</b>
-              <small>{item.rows.slice(0, 3).map((row) => `${row.label} ${row.hours}h`).join(' · ')}</small>
-            </div>
-          ))}
-          {!history.length && <p>按「儲存本週」後，這裡會保留每週快照。</p>}
-        </div>
-        <div className="historyColumn">
-          <strong>本月累計</strong>
-          {monthTotals.map((item) => (
-            <div className="monthTotal" key={item.key}>
-              <span>{item.label}</span>
-              <b>{item.hours.toFixed(1)}h</b>
-            </div>
-          ))}
-          {!monthTotals.length && <p>本月還沒有儲存的週紀錄。</p>}
-        </div>
-      </div>
-    </section>
-  );
+function ratioRowsFromTotals(totals, totalOverride) {
+  const total = totalOverride || Object.values(totals).reduce((sum, value) => sum + Number(value || 0), 0) || 1;
+  return [
+    { key: 'deep', label: '深度創作', hours: Number(totals.deep || 0), color: '#d96c4a' },
+    { key: 'growth', label: '學習技能', hours: Number(totals.growth || 0), color: '#5d87a8' },
+    { key: 'body', label: '身體維護', hours: Number(totals.body || 0), color: '#7aa27a' },
+    { key: 'work', label: '工作', hours: Number(totals.work || 0), color: '#c6a255' },
+    { key: 'rest', label: '休息睡眠', hours: Number(totals.rest || 0), color: '#8b8f98' },
+    { key: 'life', label: '生活社交', hours: Number(totals.life || 0), color: '#9b7aa5' },
+  ].map((row) => ({ ...row, percent: (row.hours / total) * 100 }));
 }
 
-function useDailyRecords() {
-  const [records, setRecords] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(TRACKING_KEY) || '[]');
-    } catch {
-      return [];
-    }
-  });
-  const saveRecords = (next) => {
-    const value = typeof next === 'function' ? next(records) : next;
-    setRecords(value);
-    localStorage.setItem(TRACKING_KEY, JSON.stringify(value));
-  };
-  return [records, saveRecords];
-}
-
-function defaultPomodoroSettings() {
-  return {
-    task: 'AI 專注時段',
-    category: 'growth',
-    startTime: '07:30',
-    focusMinutes: 25,
-    breakMinutes: 5,
-    rounds: 4,
-  };
-}
-
-function usePomodoroSettings() {
-  const [settings, setSettingsState] = useState(() => {
-    try {
-      return { ...defaultPomodoroSettings(), ...JSON.parse(localStorage.getItem(POMODORO_KEY) || '{}') };
-    } catch {
-      return defaultPomodoroSettings();
-    }
-  });
-  const setSettings = (next) => {
-    setSettingsState((prev) => {
-      const value = typeof next === 'function' ? next(prev) : next;
-      localStorage.setItem(POMODORO_KEY, JSON.stringify(value));
-      return value;
+function summarizeRecords(records) {
+  return latestRecords(records, 7).reduce((acc, record) => {
+    ['deep', 'growth', 'body', 'work', 'rest', 'life'].forEach((key) => {
+      acc[key] = (acc[key] || 0) + Number(record[key] || 0);
     });
+    return acc;
+  }, { deep: 0, growth: 0, body: 0, work: 0, rest: 0, life: 0 });
+}
+
+function latestRecords(records, limit) {
+  return [...records].sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit);
+}
+
+function normalizeRecord(record) {
+  return {
+    ...record,
+    deep: Number(record.deep || 0),
+    growth: Number(record.growth || 0),
+    body: Number(record.body || 0),
+    work: Number(record.work || 0),
+    rest: Number(record.rest || 0),
+    life: Number(record.life || 0),
   };
-  return [settings, setSettings];
 }
 
-function PomodoroPanel({ theme, onAddCalendarBlock }) {
-  const [settings, setSettings] = usePomodoroSettings();
-  const [phase, setPhase] = useState('focus');
-  const [running, setRunning] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(settings.focusMinutes * 60);
-  const [round, setRound] = useState(1);
-  const sessionMinutes = settings.focusMinutes * settings.rounds + settings.breakMinutes * Math.max(0, settings.rounds - 1);
-
-  useEffect(() => {
-    if (running) return;
-    setSecondsLeft((phase === 'focus' ? settings.focusMinutes : settings.breakMinutes) * 60);
-  }, [settings.focusMinutes, settings.breakMinutes, phase, running]);
-
-  useEffect(() => {
-    if (!running) return undefined;
-    const id = window.setInterval(() => {
-      setSecondsLeft((current) => {
-        if (current > 1) return current - 1;
-        setPhase((prevPhase) => {
-          if (prevPhase === 'focus' && round < settings.rounds) return 'break';
-          return 'focus';
-        });
-        setRound((currentRound) => {
-          if (phase === 'break') return Math.min(settings.rounds, currentRound + 1);
-          if (phase === 'focus' && currentRound >= settings.rounds) {
-            setRunning(false);
-            return 1;
-          }
-          return currentRound;
-        });
-        return (phase === 'focus' ? settings.breakMinutes : settings.focusMinutes) * 60;
-      });
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [running, phase, round, settings.breakMinutes, settings.focusMinutes, settings.rounds]);
-
-  function update(key, value) {
-    setSettings((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function resetTimer() {
-    setRunning(false);
-    setPhase('focus');
-    setRound(1);
-    setSecondsLeft(settings.focusMinutes * 60);
-  }
-
-  function addCalendarBlock() {
-    const start = dateAtTime(settings.startTime);
-    const end = new Date(start.getTime() + sessionMinutes * 60 * 1000);
-    onAddCalendarBlock(`${calendarTitleForPomodoro(settings)},${formatDateTime(start)},${formatDateTime(end)}`);
-  }
-
-  return (
-    <section className="pomodoroPanel" style={{ background: theme.surface, borderColor: theme.line }}>
-      <div className="trackerHead">
-        <div>
-          <span>番茄鐘設定</span>
-          <h2>{settings.task}</h2>
-        </div>
-        <div className="pomodoroTime">
-          <strong>{formatClock(secondsLeft)}</strong>
-          <span>{phase === 'focus' ? '專注' : '休息'} {round}/{settings.rounds}</span>
-        </div>
-      </div>
-      <div className="pomodoroGrid">
-        <label className="timeInput taskInput">
-          <span>項目</span>
-          <input value={settings.task} onChange={(event) => update('task', event.target.value)} />
-        </label>
-        <label className="timeInput">
-          <span>分類</span>
-          <select value={settings.category} onChange={(event) => update('category', event.target.value)}>
-            {CATEGORY_DEFS.map((cat) => <option key={cat.key} value={cat.key}>{cat.label}</option>)}
-          </select>
-        </label>
-        <label className="timeInput">
-          <span>開始</span>
-          <input type="time" value={settings.startTime} onChange={(event) => update('startTime', event.target.value)} />
-        </label>
-        <TimeInput label="專注分鐘" value={settings.focusMinutes} onChange={(v) => update('focusMinutes', Number(v || 0))} />
-        <TimeInput label="休息分鐘" value={settings.breakMinutes} onChange={(v) => update('breakMinutes', Number(v || 0))} />
-        <TimeInput label="輪數" value={settings.rounds} onChange={(v) => update('rounds', Number(v || 1))} />
-      </div>
-      <div className="pomodoroActions">
-        <button className="saveButton" onClick={() => setRunning((value) => !value)}>
-          <Timer size={16} />
-          {running ? '暫停' : '開始'}
-        </button>
-        <button className="miniTextButton" onClick={resetTimer}>重設計時</button>
-        <button className="miniTextButton" onClick={addCalendarBlock}>加入行程資料</button>
-        <span>整組約 {sessionMinutes} 分鐘，會被比例分析一起計算。</span>
-      </div>
-    </section>
-  );
+function valueFor(rows, label) {
+  return Number((rows.find((row) => row.label === label)?.hours || 0).toFixed(1));
 }
 
-function dateAtTime(time) {
-  const [hours = '0', minutes = '0'] = String(time || '00:00').split(':');
+function getNextMonday() {
   const date = new Date();
-  date.setHours(Number(hours), Number(minutes), 0, 0);
+  const day = date.getDay();
+  const offset = day === 0 ? 1 : 8 - day;
+  date.setDate(date.getDate() + offset);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function dateFromWeekPlan(weekStart, dayOffset, time) {
+  const [hour, minute] = time.split(':').map(Number);
+  const date = new Date(weekStart);
+  date.setDate(date.getDate() + Number(dayOffset || 0));
+  date.setHours(hour || 0, minute || 0, 0, 0);
   return date;
 }
 
 function formatDateTime(date) {
   const pad = (value) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function formatDateInput(date) {
-  const pad = (value) => String(value).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-function parseDateInput(value) {
-  const parsed = new Date(`${value}T00:00:00`);
-  return Number.isFinite(parsed.getTime()) ? parsed : startOfWeek(new Date());
-}
-
-function dateFromWeekPlan(weekStart, dayOffset, time) {
-  const [hours = '0', minutes = '0'] = String(time || '00:00').split(':');
-  const date = new Date(weekStart);
-  date.setDate(weekStart.getDate() + Number(dayOffset || 0));
-  date.setHours(Number(hours), Number(minutes), 0, 0);
-  return date;
-}
-
-function planItemToCsvLine(item, weekStart) {
-  if (!item.title || !item.start || !item.end) return '';
-  const start = dateFromWeekPlan(weekStart, item.dayOffset, item.start);
-  let end = dateFromWeekPlan(weekStart, item.dayOffset, item.end);
-  if (end <= start) {
-    end = new Date(end);
-    end.setDate(end.getDate() + 1);
-  }
-  return `${calendarTitleForPomodoro(item)},${formatDateTime(start)},${formatDateTime(end)}`;
 }
 
 function buildPlanICS(plan, weekStart) {
@@ -1228,14 +632,13 @@ function buildPlanICS(plan, weekStart) {
       end = new Date(end);
       end.setDate(end.getDate() + 1);
     }
-    const title = escapeICS(calendarTitleForPomodoro(item));
     return [
       'BEGIN:VEVENT',
       `UID:${item.id}-${formatICSDate(start)}@time-panel`,
       `DTSTAMP:${stamp}`,
       `DTSTART:${formatICSDate(start)}`,
       `DTEND:${formatICSDate(end)}`,
-      `SUMMARY:${title}`,
+      `SUMMARY:${escapeICS(item.title)}`,
       `DESCRIPTION:${escapeICS('由時間對標面板週表匯出')}`,
       'END:VEVENT',
     ].join('\r\n');
@@ -1262,381 +665,6 @@ function downloadTextFile(filename, content, type) {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-}
-
-function formatClock(seconds) {
-  const safe = Math.max(0, seconds);
-  const minutes = Math.floor(safe / 60);
-  const rest = safe % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
-}
-
-function calendarTitleForPomodoro(settings) {
-  const prefix = {
-    dance: '練舞',
-    fitness: '健身',
-    growth: 'AI',
-    reading: '閱讀',
-    investing: '美股',
-    photo: '街拍',
-    music: '吉他',
-    social: '社交',
-    daily: '行政',
-    recovery: '休息',
-  }[settings.category] || '';
-  return `${prefix} ${settings.task}`.trim();
-}
-
-function DailyTracker({ theme, records, setRecords, analysis }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const existing = records.find((record) => record.date === today);
-  const defaults = existing || {
-    date: today,
-    deep: Number((analysis.rows.find((row) => row.key === 'growth')?.hours || 0).toFixed(1)),
-    growth: Number((analysis.rows.find((row) => row.key === 'music')?.hours || 0).toFixed(1)),
-    body: Number((analysis.rows.find((row) => row.key === 'fitness')?.hours || 0).toFixed(1)),
-    work: Number((analysis.fixedWorkHours || 0).toFixed(1)),
-    rest: 0,
-    life: 0,
-    note: '',
-  };
-  const [draft, setDraft] = useState(defaults);
-  const lastSeven = [...records].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7);
-  const weeklyTotal = lastSeven.reduce((sum, record) => sum + Number(record.deep || 0) + Number(record.growth || 0), 0);
-
-  function update(key, value) {
-    setDraft((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function save() {
-    const cleaned = {
-      ...draft,
-      deep: Number(draft.deep || 0),
-      growth: Number(draft.growth || 0),
-      body: Number(draft.body || 0),
-      work: Number(draft.work || 0),
-      rest: Number(draft.rest || 0),
-      life: Number(draft.life || 0),
-    };
-    setRecords((prev) => {
-      const withoutToday = prev.filter((record) => record.date !== cleaned.date);
-      return [...withoutToday, cleaned].sort((a, b) => a.date.localeCompare(b.date));
-    });
-  }
-
-  return (
-    <section className="dailyTracker" style={{ background: theme.surface, borderColor: theme.line }}>
-      <div className="trackerHead">
-        <div>
-          <span>每日追蹤</span>
-          <h2>今天的時間帳</h2>
-        </div>
-        <button className="saveButton" onClick={save}>
-          <Save size={16} />
-          儲存今天
-        </button>
-      </div>
-      <div className="trackerForm">
-        <TimeInput label="深度創作" value={draft.deep} onChange={(v) => update('deep', v)} />
-        <TimeInput label="學習技能" value={draft.growth} onChange={(v) => update('growth', v)} />
-        <TimeInput label="身體維護" value={draft.body} onChange={(v) => update('body', v)} />
-        <TimeInput label="工作" value={draft.work} onChange={(v) => update('work', v)} />
-        <TimeInput label="休息睡眠" value={draft.rest} onChange={(v) => update('rest', v)} />
-        <TimeInput label="生活社交" value={draft.life} onChange={(v) => update('life', v)} />
-      </div>
-      <textarea
-        className="noteInput"
-        value={draft.note}
-        onChange={(event) => update('note', event.target.value)}
-        placeholder="今天的能量、卡點、明天要保護的時間..."
-      />
-      <div className="recordStrip">
-        <strong>近 7 筆深度/技能：{weeklyTotal.toFixed(1)}h</strong>
-        <div>
-          {lastSeven.length ? lastSeven.map((record) => (
-            <span key={record.date}>{record.date.slice(5)} · {(Number(record.deep || 0) + Number(record.growth || 0)).toFixed(1)}h</span>
-          )) : <span>儲存後會出現每日紀錄</span>}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function TimeInput({ label, value, onChange }) {
-  return (
-    <label className="timeInput">
-      <span>{label}</span>
-      <input
-        type="number"
-        inputMode="decimal"
-        pattern="[0-9]*"
-        min="0"
-        step="0.25"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </label>
-  );
-}
-
-const SAMPLE_CALENDAR_TEXT = [
-  '上班,2026-06-01 09:00,2026-06-01 18:00',
-  'AI 專注時段,2026-06-01 07:30,2026-06-01 08:30',
-  '看書,2026-06-01 22:20,2026-06-01 23:00',
-  '美股投資研究,2026-06-04 21:30,2026-06-04 22:30',
-  '健身 腳,2026-06-01 12:30,2026-06-01 13:30',
-  'Bachata 課,2026-06-01 20:00,2026-06-01 22:00',
-  '上班,2026-06-02 09:00,2026-06-02 18:00',
-  '街拍抓拍 大安森林,2026-06-02 18:30,2026-06-02 20:00',
-  '吉他拍照文案,2026-06-02 19:30,2026-06-02 21:00',
-  '練吉他 錄音創作,2026-06-05 20:00,2026-06-05 21:30',
-  'Minnie 晚餐,2026-06-03 19:00,2026-06-03 21:00',
-  'Flow 舞會,2026-06-06 21:30,2026-06-07 00:30',
-].join('\n');
-
-function parseCalendarText(raw) {
-  return raw.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
-    const [title = '未命名', start = '', end = ''] = line.split(',').map((part) => part.trim());
-    const startDate = new Date(start.replace(' ', 'T'));
-    const endDate = new Date(end.replace(' ', 'T'));
-    const hours = Number.isFinite(endDate - startDate) ? Math.max(0, (endDate - startDate) / 36e5) : 0;
-    return {
-      title,
-      startDate,
-      endDate,
-      hours,
-      hour: Number.isFinite(startDate.getTime()) ? startDate.getHours() : null,
-      day: Number.isFinite(startDate.getTime()) ? startDate.getDay() : null,
-      category: inferCategory(title),
-    };
-  }).filter((event) => event.hours > 0);
-}
-
-function inferCategory(title) {
-  const text = title.toLowerCase();
-  if (/上班|工作|meeting|會議|確認訂單|訂單|skyco|aeroband|9f/.test(text)) return 'work';
-  if (/bachata|blues|flow|barcade|練舞|舞會|跳舞/.test(text)) return 'dance';
-  if (/健身|重訓|跑步|腳|腿|運動|gym/.test(text)) return 'fitness';
-  if (/看書|讀書|閱讀|書單|讀本|book|reading/.test(text)) return 'reading';
-  if (/美股|股票|投資|財報|etf|nasdaq|nyse|market|stock|earnings|portfolio/.test(text)) return 'investing';
-  if (/ai|code|coding|開發|系統|日文|學習|技術/.test(text)) return 'growth';
-  if (/街拍|抓拍|攝影|拍攝|掃街|外拍|人像|street|photo|photography/.test(text)) return 'photo';
-  if (/吉他|錄音|創作|demo|編曲|作曲|riff|伴奏|弦之音|resale|轉售|拍照|文案|jim\.visuals|修圖|調色/.test(text)) return 'music';
-  if (/晚餐|吃飯|烤肉|大安森林|聚會|朋友|minnie|社交|休閒/.test(text)) return 'social';
-  if (/倒垃圾|剪頭髮|整理|上傳|補貨|器材|行政|帳務/.test(text)) return 'daily';
-  if (/睡|休息|補眠|午睡|放空|恢復/.test(text)) return 'recovery';
-  return 'unclassified';
-}
-
-function analyzeCalendar(events, targets, adjustments, theme) {
-  const totals = events.reduce((acc, event) => {
-    acc[event.category] = (acc[event.category] || 0) + event.hours;
-    return acc;
-  }, {});
-  const workHours = totals.work || 0;
-  const workDays = new Set(events.filter((event) => event.category === 'work' && event.day > 0 && event.day < 6).map((event) => event.startDate.toISOString().slice(0, 10))).size;
-  const workFlexHours = Math.min(workHours, workDays * 1.5);
-  const fixedWorkHours = Math.max(0, workHours - workFlexHours);
-  const weekCapacity = estimateWeekCapacity(events);
-  const offWorkTotalHours = weekCapacity.weekdayOffHours + weekCapacity.weekendHours;
-  const adjustedTotals = { ...totals };
-  for (const cat of CATEGORY_DEFS) {
-    adjustedTotals[cat.key] = Math.max(0, (adjustedTotals[cat.key] || 0) + Number(adjustments[cat.key] || 0));
-  }
-  const plannedOffWorkHours = Object.entries(adjustedTotals).reduce((sum, [key, hours]) => (
-    key === 'work' || key === 'unclassified' ? sum : sum + hours
-  ), 0);
-  const openOffWorkHours = Math.max(0, offWorkTotalHours - plannedOffWorkHours);
-  const categoryHours = { ...adjustedTotals, workFlex: workFlexHours };
-  delete categoryHours.work;
-  const controllableHours = offWorkTotalHours + workFlexHours;
-  const totalBasisHours = fixedWorkHours + controllableHours;
-  const normalizedTargetTotal = CATEGORY_DEFS.reduce((sum, cat) => sum + Number(targets[cat.key] || 0), 0) || 100;
-  const rows = CATEGORY_DEFS.map((cat) => {
-    const hours = categoryHours[cat.key] || 0;
-    const actualPercent = controllableHours ? (hours / controllableHours) * 100 : 0;
-    const totalPercent = totalBasisHours ? (hours / totalBasisHours) * 100 : 0;
-    const target = Math.round((Number(targets[cat.key] || 0) / normalizedTargetTotal) * 100);
-    const colorKey = CATEGORY_COLOR_KEYS[cat.key];
-    return {
-      key: cat.key,
-      label: cat.label,
-      goal: cat.goal,
-      hours,
-      actualPercent,
-      totalPercent,
-      target,
-      delta: actualPercent - target,
-      color: theme[colorKey] || theme.accent,
-    };
-  });
-  const proportionError = rows.reduce((sum, row) => sum + Math.abs(row.delta), 0) / Math.max(1, rows.length);
-  const proportionFit = clamp(Math.round(100 - proportionError * 2.2), 0, 100);
-  const strategicHours = (categoryHours.growth || 0) + (categoryHours.fitness || 0) + (categoryHours.music || 0) + (categoryHours.reading || 0) + (categoryHours.investing || 0);
-  const strategicTarget = controllableHours * (((targets.growth || 0) + (targets.fitness || 0) + (targets.music || 0) + (targets.photo || 0) + (targets.reading || 0) + (targets.investing || 0)) / normalizedTargetTotal);
-  const priorityFit = clamp(Math.round((strategicHours / Math.max(1, strategicTarget)) * 86), 0, 100);
-  const focusEvents = events.filter((event) => ['growth', 'music', 'photo', 'investing'].includes(event.category));
-  const focusQuality = focusEvents.length
-    ? Math.round(focusEvents.reduce((sum, event) => sum + focusWeight(event), 0) / focusEvents.length)
-    : 48;
-  const recoveryPercent = controllableHours ? ((categoryHours.recovery || 0) / controllableHours) * 100 : 0;
-  const recoveryBalance = clamp(Math.round(100 - Math.abs(recoveryPercent - 9) * 5), 35, 100);
-  const score = Math.round(proportionFit * .45 + priorityFit * .25 + focusQuality * .2 + recoveryBalance * .1);
-  const sortedGaps = [...rows].sort((a, b) => (b.target - b.actualPercent) - (a.target - a.actualPercent));
-  const topGap = sortedGaps[0];
-  const focus = (categoryHours.growth || 0) + (categoryHours.music || 0) + (categoryHours.photo || 0) + (categoryHours.reading || 0) + (categoryHours.investing || 0);
-  const body = categoryHours.fitness || 0;
-  return {
-    score,
-    rows,
-    weekKey: formatWeekKey(weekCapacity.weekStart),
-    weekStartISO: formatDateInput(weekCapacity.weekStart),
-    monthKey: formatMonthKey(weekCapacity.weekStart),
-    fixedWorkHours,
-    totalBasisHours,
-    offWorkTotalHours,
-    weekendHours: weekCapacity.weekendHours,
-    openOffWorkHours,
-    controllableHours,
-    headline: score >= 78 ? '時間配置大致對齊你的方向' : `下週優先補 ${topGap.label}`,
-    note: `已解析 ${events.length} 筆行程。下班清醒總額含平日晚間/早晨 ${weekCapacity.weekdayOffHours.toFixed(1)}h 與週末假日 ${weekCapacity.weekendHours.toFixed(1)}h，另抓出 ${workFlexHours.toFixed(1)}h 忙裡偷閒可活用時間。`,
-    directionNote: `你的核心方向是 AI 成長、閱讀看書、美股投資研究、舞蹈社交、健身、街拍抓拍、吉他錄音創作並行。這週下班已排 ${plannedOffWorkHours.toFixed(1)}h，尚有 ${openOffWorkHours.toFixed(1)}h 空白可配置；扣掉工作後的成長/閱讀/投資/影像/創作合計 ${focus.toFixed(1)}h，健身 ${body.toFixed(1)}h，舞蹈 ${(categoryHours.dance || 0).toFixed(1)}h。`,
-    scoreParts: [
-      { label: '比例貼合', value: proportionFit, color: theme.accent },
-      { label: '優先級', value: priorityFit, color: theme.align },
-      { label: '專注品質', value: focusQuality, color: theme.focus },
-      { label: '恢復平衡', value: recoveryBalance, color: theme.gold },
-    ],
-    insights: [
-      `可控時間比例用來看真實選擇，不讓固定工作把分析稀釋掉。`,
-      focusQuality >= 72 ? 'AI / 投資 / 影像 / 吉他創作類事件有放在較好的時段，專注品質不錯。' : '高價值目標偏晚或偏碎，建議改放早晨、午間或週末日光時段。',
-      recoveryBalance >= 70 ? '恢復比例尚可，能支撐舞蹈與健身節奏。' : '恢復偏少，下週至少保護一個早睡或低刺激晚上。',
-    ],
-    recommendations: makeRecommendations(rows, controllableHours),
-  };
-}
-
-function estimateWeekCapacity(events) {
-  const anchor = events.find((event) => event.startDate instanceof Date && Number.isFinite(event.startDate.getTime()))?.startDate || new Date();
-  const weekStart = startOfWeek(anchor);
-  let weekdays = 0;
-  let weekendDays = 0;
-  for (let offset = 0; offset < 7; offset += 1) {
-    const date = new Date(weekStart);
-    date.setDate(weekStart.getDate() + offset);
-    const day = date.getDay();
-    if (day === 0 || day === 6) weekendDays += 1;
-    else weekdays += 1;
-  }
-  return {
-    weekStart,
-    weekdays,
-    weekendDays,
-    weekdayOffHours: weekdays * 7,
-    weekendHours: weekendDays * 16,
-  };
-}
-
-function startOfWeek(date) {
-  const copy = new Date(date);
-  const day = copy.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  copy.setDate(copy.getDate() + diff);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
-}
-
-function formatWeekKey(date) {
-  const end = new Date(date);
-  end.setDate(date.getDate() + 6);
-  return `${formatShortDate(date)}-${formatShortDate(end)}`;
-}
-
-function formatMonthKey(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function formatShortDate(date) {
-  return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function focusWeight(event) {
-  if (event.hour === null) return 55;
-  if (event.hour >= 7 && event.hour <= 11) return 92;
-  if (event.hour >= 12 && event.hour <= 16) return 76;
-  if (event.hour >= 17 && event.hour <= 20) return 64;
-  return 46;
-}
-
-function makeRecommendations(rows, controllableHours) {
-  const gaps = rows
-    .map((row) => ({ ...row, gapHours: Math.max(0, ((row.target - row.actualPercent) / 100) * controllableHours) }))
-    .filter((row) => row.gapHours >= .75)
-    .sort((a, b) => b.gapHours - a.gapHours)
-    .slice(0, 3);
-  if (!gaps.length) return ['目前比例接近目標。下週重點不是加行程，而是保護既有高品質時段。'];
-  return gaps.map((row) => {
-    if (row.key === 'growth') return `補 ${row.gapHours.toFixed(1)}h AI / 成長：優先排 2 個早上 60-90 分鐘深度時段。`;
-    if (row.key === 'reading') return `補 ${row.gapHours.toFixed(1)}h 閱讀看書：排睡前 30 分鐘或週末一段 90 分鐘輸入。`;
-    if (row.key === 'investing') return `補 ${row.gapHours.toFixed(1)}h 美股投資研究：可固定 21:30 做財報、ETF、持倉與市場筆記。`;
-    if (row.key === 'fitness') return `補 ${row.gapHours.toFixed(1)}h 健身：放進午休或下班前，避免擠壓舞蹈晚上。`;
-    if (row.key === 'dance') return `補 ${row.gapHours.toFixed(1)}h 舞蹈：選 1 場課或舞會即可，隔天早上保留恢復。`;
-    if (row.key === 'photo') return `補 ${row.gapHours.toFixed(1)}h 街拍抓拍：優先排週末下午或平日黃昏，留 30 分鐘整理選片。`;
-    if (row.key === 'music') return `補 ${row.gapHours.toFixed(1)}h 吉他錄音創作：先排 2 次 45-90 分鐘，分成練 riff、錄 demo、回聽整理。`;
-    if (row.key === 'recovery') return `補 ${row.gapHours.toFixed(1)}h 恢復：安排一個不社交的晚上，讓下週不透支。`;
-    return `補 ${row.gapHours.toFixed(1)}h ${row.label}：用整塊時間處理，少切碎。`;
-  });
-}
-
-function categoryLabel(cat) {
-  return {
-    deep: '深度',
-    learn: '學習',
-    create: '創作',
-    move: '移動',
-    admin: '行政',
-    plan: '規劃',
-    review: '回顧',
-    break: '休息',
-    sleep: '睡眠',
-  }[cat] || cat;
-}
-
-function goalLabel(label) {
-  return {
-    Year: '年度',
-    Quarter: '季度',
-    Month: '月份',
-    Week: '本週',
-  }[label] || label;
-}
-
-function hourArc(hour, span, rOut, rIn) {
-  const cx = 210;
-  const cy = 210;
-  const a0 = (hour / 24) * Math.PI * 2 - Math.PI / 2 + 0.01;
-  const a1 = ((hour + span) / 24) * Math.PI * 2 - Math.PI / 2 - 0.01;
-  const p = (r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
-  const [x0o, y0o] = p(rOut, a0);
-  const [x1o, y1o] = p(rOut, a1);
-  const [x0i, y0i] = p(rIn, a0);
-  const [x1i, y1i] = p(rIn, a1);
-  return `M ${x0o} ${y0o} A ${rOut} ${rOut} 0 0 1 ${x1o} ${y1o} L ${x1i} ${y1i} A ${rIn} ${rIn} 0 0 0 ${x0i} ${y0i} Z`;
-}
-
-function circleArc(cx, cy, r, progress) {
-  const start = -Math.PI / 2;
-  const end = start + Math.PI * 2 * Math.min(progress, .999);
-  const large = progress > .5 ? 1 : 0;
-  const x0 = cx + r * Math.cos(start);
-  const y0 = cy + r * Math.sin(start);
-  const x1 = cx + r * Math.cos(end);
-  const y1 = cy + r * Math.sin(end);
-  return `M ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1}`;
 }
 
 createRoot(document.getElementById('root')).render(<App />);

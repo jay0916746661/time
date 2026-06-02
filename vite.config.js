@@ -4,4 +4,11 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   base: '/time/',
   plugins: [react()],
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    rollupOptions: {
+      input: 'app/index.html',
+    },
+  },
 });
