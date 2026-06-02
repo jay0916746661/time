@@ -456,6 +456,9 @@ input {
 .ratioHero,
 .measurementPlan,
 .weeklyPlanPanel,
+.longHero,
+.horizonCard,
+.longPanel,
 .gcalBar {
   border: 1px solid;
 }
@@ -737,6 +740,94 @@ input {
   margin: 0;
   color: color-mix(in srgb, currentColor, transparent 36%);
   line-height: 1.5;
+}
+
+.longHero {
+  min-height: 210px;
+  border-radius: 16px;
+  padding: 22px;
+  display: grid;
+  grid-template-columns: .9fr 1.1fr;
+  align-items: end;
+  gap: 22px;
+}
+
+.longHero span,
+.horizonCard span {
+  color: color-mix(in srgb, currentColor, transparent 42%);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.longHero strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 52px;
+  line-height: 1;
+}
+
+.longHero p,
+.horizonCard p,
+.longPanel p {
+  margin: 8px 0 0;
+  line-height: 1.55;
+  color: color-mix(in srgb, currentColor, transparent 30%);
+}
+
+.trajectory {
+  height: 150px;
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  align-items: end;
+  gap: 7px;
+  padding: 10px 0 4px;
+}
+
+.trajectory i {
+  display: block;
+  min-height: 8px;
+  border-radius: 999px 999px 4px 4px;
+}
+
+.horizonGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.horizonCard {
+  min-height: 142px;
+  border-radius: 14px;
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.horizonCard strong {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.longSplit {
+  display: grid;
+  grid-template-columns: 1.25fr .75fr;
+  gap: 12px;
+}
+
+.longPanel {
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.longPanel h2 {
+  margin: 0 0 12px;
+  font-size: 22px;
+}
+
+.longPanel .targetRows {
+  grid-template-columns: repeat(3, 1fr);
 }
 
 .insightList {

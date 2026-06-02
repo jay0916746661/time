@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Activity,
@@ -22,6 +22,7 @@ const PASSWORD_HASH = '821232b4b8d1078f2e1c7963bf29d503820410bfbac3d06977870a463
 const AUTH_KEY = 'time-panel-auth';
 const TRACKING_KEY = 'time-panel-daily-records';
 const WEEKLY_PLAN_KEY = 'time-panel-weekly-plan';
+const CALENDAR_RAW_KEY = 'time-panel-calendar-raw';
 
 const PALETTES = {
   ember: { name: '暖橘', accent: '#d96c4a', focus: '#7aa27a', align: '#5d87a8', gold: '#c6a255', bg: '#f6f4ef' },
@@ -77,7 +78,7 @@ function App() {
                 <span>{view === 'calendar' ? 'Google 日曆對標' : '比例儀表板'}</span>
               </div>
               <div className="artboard calendarArtboard" style={{ background: theme.page, color: theme.ink }}>
-                {view === 'calendar' ? <CalendarBoard theme={theme} /> : <RatioBoard theme={theme} />}
+                {view === 'calendar' ? <CalendarBoard theme={theme} /> : view === 'longterm' ? <LongTermBoard theme={theme} /> : <RatioBoard theme={theme} />}
               </div>
             </article>
           </div>
@@ -152,6 +153,7 @@ function Sidebar({ active, onSelect, theme }) {
   const items = [
     { id: 'calendar', label: '日曆校正', icon: CalendarDays },
     { id: 'ratio', label: '比例總覽', icon: Gauge },
+    { id: 'longterm', label: '週月長期', icon: BarChart3 },
   ];
   return (
     <nav className="sidebar" style={{ background: theme.surface, borderColor: theme.line }}>
@@ -166,12 +168,16 @@ function Sidebar({ active, onSelect, theme }) {
 }
 
 function CalendarBoard({ theme }) {
-  const [raw, setRaw] = useState(SAMPLE_CALENDAR_TEXT);
+  const [raw, setRaw] = useState(() => localStorage.getItem(CALENDAR_RAW_KEY) || SAMPLE_CALENDAR_TEXT);
   const [records, setRecords] = useDailyRecords();
   const [icsUrl, setIcsUrl] = useState('');
   const [importStatus, setImportStatus] = useState('');
   const events = useMemo(() => parseCalendarText(raw), [raw]);
   const analysis = useMemo(() => analyzeCalendar(events, records), [events, records]);
+
+  useEffect(() => {
+    localStorage.setItem(CALENDAR_RAW_KEY, raw);
+  }, [raw]);
 
   function handleICSFile(event) {
     const file = event.target.files?.[0];
@@ -392,6 +398,50 @@ function WeeklyPlanPanel({ theme, onAddCalendarBlock }) {
   );
 }
 
+function LongTermBoard({ theme }) {
+  const [records] = useDailyRecords();
+  const raw = localStorage.getItem(CALENDAR_RAW_KEY) || SAMPLE_CALENDAR_TEXT;
+  const events = useMemo(() => parseCalendarText(raw), [raw]);
+  const model = useMemo(() => buildLongTermModel(events, records), [events, records]);
+  return (
+    <div className="boardLayout trackingBoard">
+      <BoardHeader kicker="週 / 月 / 90 天" title="長期時間羅盤" theme={theme} />
+      <section className="longHero" style={{ background: theme.surface, borderColor: theme.line }}>
+        <div>
+          <span>長期能力時間</span>
+          <strong>{model.totalFocus.toFixed(1)}h</strong>
+          <p>{model.summary}</p>
+        </div>
+        <div className="trajectory">
+          {model.trend.map((day) => (
+            <i key={day.label} style={{ height: `${Math.max(8, day.focus * 12)}px`, background: day.focus >= 1 ? theme.accent : theme.line }} title={`${day.label} ${day.focus.toFixed(1)}h`} />
+          ))}
+        </div>
+      </section>
+      <section className="horizonGrid">
+        {model.horizons.map((horizon) => (
+          <div key={horizon.label} className="horizonCard" style={{ background: theme.surface, borderColor: theme.line }}>
+            <span>{horizon.label}</span>
+            <strong>{horizon.focus.toFixed(1)}h</strong>
+            <p>{horizon.caption}</p>
+            <div className="progressLine"><i style={{ width: `${Math.min(100, horizon.progress)}%`, background: horizon.color }} /></div>
+          </div>
+        ))}
+      </section>
+      <section className="longSplit">
+        <div className="longPanel" style={{ background: theme.surface, borderColor: theme.line }}>
+          <h2>本月比例</h2>
+          <RatioRows theme={theme} rows={model.monthRows} />
+        </div>
+        <div className="longPanel" style={{ background: theme.surface, borderColor: theme.line }}>
+          <h2>下個調整</h2>
+          {model.actions.map((action) => <p key={action}>{action}</p>)}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function DailyTracker({ theme, records, setRecords, analysis }) {
   const today = new Date().toISOString().slice(0, 10);
   const existing = records.find((record) => record.date === today);
@@ -571,7 +621,7 @@ function parseCalendarText(raw) {
     const startDate = new Date(start.replace(' ', 'T'));
     const endDate = new Date(end.replace(' ', 'T'));
     const hours = Number.isFinite(endDate - startDate) ? Math.max(0, (endDate - startDate) / 36e5) : 0;
-    return { title, hours, category: inferCategory(title) };
+    return { title, start: startDate, end: endDate, date: isoDate(startDate), hours, category: inferCategory(title) };
   }).filter((event) => event.hours > 0);
 }
 
@@ -726,6 +776,92 @@ function summarizeRecords(records) {
   }, { deep: 0, growth: 0, body: 0, work: 0, rest: 0, life: 0 });
 }
 
+function buildLongTermModel(events, records) {
+  const today = startOfDay(new Date());
+  const eventRecords = events.map((event) => ({
+    date: event.date,
+    deep: event.category === 'deep' ? event.hours : 0,
+    growth: event.category === 'growth' ? event.hours : 0,
+    body: event.category === 'body' ? event.hours : 0,
+    work: event.category === 'work' ? event.hours : 0,
+    rest: event.category === 'rest' ? event.hours : 0,
+    life: event.category === 'life' ? event.hours : 0,
+  }));
+  const manualByDate = new Map(records.map((record) => [record.date, normalizeRecord(record)]));
+  const eventByDate = groupRecordsByDate(eventRecords);
+  const dates = new Set([...manualByDate.keys(), ...eventByDate.keys()]);
+  const merged = [...dates].map((date) => manualByDate.get(date) || eventByDate.get(date)).filter(Boolean);
+  const week = filterSince(merged, addDays(today, -6));
+  const month = filterSince(merged, addDays(today, -29));
+  const quarter = filterSince(merged, addDays(today, -89));
+  const weekTotals = sumRecordList(week);
+  const monthTotals = sumRecordList(month);
+  const quarterTotals = sumRecordList(quarter);
+  const totalFocus = (quarterTotals.deep || 0) + (quarterTotals.growth || 0);
+  const trend = Array.from({ length: 14 }, (_, index) => {
+    const date = addDays(today, index - 13);
+    const key = isoDate(date);
+    const item = manualByDate.get(key) || eventByDate.get(key) || {};
+    return { label: key.slice(5), focus: Number(item.deep || 0) + Number(item.growth || 0) };
+  });
+  const horizons = [
+    makeHorizon('本週', weekTotals, 6, '#d96c4a'),
+    makeHorizon('本月', monthTotals, 24, '#5d87a8'),
+    makeHorizon('90 天', quarterTotals, 72, '#7aa27a'),
+  ];
+  const monthRows = ratioRowsFromTotals(monthTotals);
+  const focusMonth = Number(monthTotals.deep || 0) + Number(monthTotals.growth || 0);
+  return {
+    totalFocus,
+    trend,
+    horizons,
+    monthRows,
+    summary: focusMonth >= 24 ? '本月長期能力時間已經有厚度，接下來要看穩定性。' : '本月長期能力時間還不夠厚，先把每週固定輸出時段保護起來。',
+    actions: [
+      focusMonth < 24 ? '本週先補 2 個 60 到 90 分鐘的深度創作區塊。' : '維持目前節奏，避免把高品質時段切碎。',
+      (monthTotals.body || 0) < 8 ? '身體維護偏少，建議固定兩個低門檻運動時段。' : '身體維護有穩住，可以用它支撐晚間輸出。',
+      records.length < 7 ? '每日校正資料還少，連續記 7 天後長期判讀會更準。' : '已有手動校正資料，可以開始看每週趨勢而不是單日情緒。',
+    ],
+  };
+}
+
+function makeHorizon(label, totals, target, color) {
+  const focus = Number(totals.deep || 0) + Number(totals.growth || 0);
+  return {
+    label,
+    focus,
+    progress: target ? (focus / target) * 100 : 0,
+    color,
+    caption: `${focus.toFixed(1)} / ${target}h 長期能力時間`,
+  };
+}
+
+function groupRecordsByDate(records) {
+  const map = new Map();
+  for (const record of records) {
+    const prev = map.get(record.date) || { date: record.date, deep: 0, growth: 0, body: 0, work: 0, rest: 0, life: 0 };
+    ['deep', 'growth', 'body', 'work', 'rest', 'life'].forEach((key) => {
+      prev[key] += Number(record[key] || 0);
+    });
+    map.set(record.date, prev);
+  }
+  return map;
+}
+
+function filterSince(records, since) {
+  const sinceKey = isoDate(since);
+  return records.filter((record) => record.date >= sinceKey);
+}
+
+function sumRecordList(records) {
+  return records.reduce((acc, record) => {
+    ['deep', 'growth', 'body', 'work', 'rest', 'life'].forEach((key) => {
+      acc[key] = (acc[key] || 0) + Number(record[key] || 0);
+    });
+    return acc;
+  }, { deep: 0, growth: 0, body: 0, work: 0, rest: 0, life: 0 });
+}
+
 function latestRecords(records, limit) {
   return [...records].sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit);
 }
@@ -744,6 +880,11 @@ function normalizeRecord(record) {
 
 function valueFor(rows, label) {
   return Number((rows.find((row) => row.label === label)?.hours || 0).toFixed(1));
+}
+
+function isoDate(date) {
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 function getNextMonday() {
