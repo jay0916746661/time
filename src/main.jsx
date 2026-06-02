@@ -168,12 +168,61 @@ function Sidebar({ active, onSelect, theme }) {
 function CalendarBoard({ theme }) {
   const [raw, setRaw] = useState(SAMPLE_CALENDAR_TEXT);
   const [records, setRecords] = useDailyRecords();
+  const [icsUrl, setIcsUrl] = useState('');
+  const [importStatus, setImportStatus] = useState('');
   const events = useMemo(() => parseCalendarText(raw), [raw]);
   const analysis = useMemo(() => analyzeCalendar(events, records), [events, records]);
+
+  function handleICSFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (readerEvent) => {
+      const parsed = parseICS(readerEvent.target.result || '');
+      if (parsed) {
+        setRaw(parsed);
+        setImportStatus(`已匯入 ${file.name}`);
+      } else {
+        setImportStatus('這個 .ics 檔沒有解析到可用事件');
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  async function tryFetchICS() {
+    setImportStatus('正在嘗試讀取 iCal 連結...');
+    try {
+      const res = await fetch(icsUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      const parsed = parseICS(text);
+      if (!parsed) throw new Error('empty');
+      setRaw(parsed);
+      setImportStatus('已從 iCal 連結匯入');
+    } catch {
+      setImportStatus('Google 目前擋住瀏覽器直接讀取。請打開這個連結下載 .ics，再用左邊上傳。');
+    }
+  }
 
   return (
     <div className="boardLayout trackingBoard">
       <BoardHeader kicker="Google Calendar / 手動校正" title="日曆對標與每日追蹤" theme={theme} />
+      <section className="gcalBar" style={{ background: theme.surface, borderColor: theme.line }}>
+        <label className="gcalFileBtn">
+          <input type="file" accept=".ics,text/calendar" onChange={handleICSFile} />
+          上傳 .ics
+        </label>
+        <span className="gcalSep">或</span>
+        <input
+          className="gcalUrlInput"
+          type="url"
+          value={icsUrl}
+          onChange={(event) => setIcsUrl(event.target.value)}
+          placeholder="貼上 Google 私密 iCal 連結"
+        />
+        <button className="gcalButton" onClick={tryFetchICS} disabled={!icsUrl}>測試同步</button>
+        {importStatus && <span className="gcalStatus">{importStatus}</span>}
+      </section>
       <section className="calendarGrid">
         <div className="calendarSummary" style={{ background: theme.surface, borderColor: theme.line }}>
           <div className="scoreDial" style={{ borderColor: theme.line }}>
@@ -524,6 +573,103 @@ function parseCalendarText(raw) {
     const hours = Number.isFinite(endDate - startDate) ? Math.max(0, (endDate - startDate) / 36e5) : 0;
     return { title, hours, category: inferCategory(title) };
   }).filter((event) => event.hours > 0);
+}
+
+function parseICS(text) {
+  const normalized = String(text || '').replace(/\r\n/g, '\n').replace(/\n[ \t]/g, '');
+  const events = [];
+  let current = null;
+  for (const line of normalized.split('\n')) {
+    if (line === 'BEGIN:VEVENT') {
+      current = {};
+      continue;
+    }
+    if (line === 'END:VEVENT') {
+      if (current?.summary && current?.start && current?.end) events.push(current);
+      current = null;
+      continue;
+    }
+    if (!current) continue;
+    const sep = line.indexOf(':');
+    if (sep < 0) continue;
+    const rawKey = line.slice(0, sep);
+    const value = line.slice(sep + 1);
+    const key = rawKey.split(';')[0];
+    if (key === 'SUMMARY') current.summary = unescapeICS(value);
+    if (key === 'DTSTART') current.start = parseICSDate(value);
+    if (key === 'DTEND') current.end = parseICSDate(value);
+    if (key === 'RRULE') current.rrule = value;
+  }
+  const expanded = expandICSEvents(events);
+  return expanded.map((event) => `${event.summary},${formatDateTime(event.start)},${formatDateTime(event.end)}`).join('\n');
+}
+
+function parseICSDate(value) {
+  const clean = String(value || '').trim();
+  const match = clean.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?)?(Z)?$/);
+  if (!match) return null;
+  const [, year, month, day, hour = '00', minute = '00', second = '00', z] = match;
+  if (z) return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second)));
+  return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second));
+}
+
+function expandICSEvents(events) {
+  const startWindow = startOfDay(addDays(new Date(), -14));
+  const endWindow = endOfDay(addDays(new Date(), 30));
+  const out = [];
+  for (const event of events) {
+    const duration = event.end - event.start;
+    if (!Number.isFinite(duration) || duration <= 0) continue;
+    if (!event.rrule) {
+      if (event.start >= startWindow && event.start <= endWindow) out.push(event);
+      continue;
+    }
+    const rule = parseRRule(event.rrule);
+    const freq = rule.FREQ;
+    const interval = Number(rule.INTERVAL || 1);
+    const until = rule.UNTIL ? parseICSDate(rule.UNTIL) : endWindow;
+    const count = Number(rule.COUNT || 500);
+    let cursor = new Date(event.start);
+    let seen = 0;
+    while (cursor <= endWindow && cursor <= until && seen < count) {
+      if (cursor >= startWindow) out.push({ ...event, start: new Date(cursor), end: new Date(cursor.getTime() + duration), rrule: null });
+      if (freq === 'DAILY') cursor = addDays(cursor, interval);
+      else if (freq === 'WEEKLY') cursor = addDays(cursor, 7 * interval);
+      else break;
+      seen += 1;
+    }
+  }
+  return out.sort((a, b) => a.start - b.start);
+}
+
+function parseRRule(value) {
+  return String(value || '').split(';').reduce((acc, part) => {
+    const [key, val] = part.split('=');
+    if (key && val) acc[key] = val;
+    return acc;
+  }, {});
+}
+
+function unescapeICS(value) {
+  return String(value || '').replace(/\\n/g, ' ').replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\\\/g, '\\');
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function startOfDay(date) {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function endOfDay(date) {
+  const next = new Date(date);
+  next.setHours(23, 59, 59, 999);
+  return next;
 }
 
 function inferCategory(title) {

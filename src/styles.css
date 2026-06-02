@@ -455,7 +455,8 @@ input {
 .sourceCard,
 .ratioHero,
 .measurementPlan,
-.weeklyPlanPanel {
+.weeklyPlanPanel,
+.gcalBar {
   border: 1px solid;
 }
 
@@ -626,6 +627,61 @@ input {
 .measurementPlan h2 {
   margin: 0;
   font-size: 22px;
+}
+
+.gcalBar {
+  min-height: 58px;
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gcalFileBtn,
+.gcalButton {
+  min-height: 34px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #202018;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 700;
+}
+
+.gcalFileBtn input {
+  display: none;
+}
+
+.gcalSep {
+  color: color-mix(in srgb, currentColor, transparent 52%);
+  font-weight: 800;
+}
+
+.gcalUrlInput {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid rgba(120, 120, 120, .2);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, .46);
+  color: inherit;
+}
+
+.gcalButton:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+.gcalStatus {
+  max-width: 230px;
+  color: color-mix(in srgb, currentColor, transparent 30%);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .weeklyPlanPanel {
